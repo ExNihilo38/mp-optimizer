@@ -19,10 +19,16 @@ déployable tel quel sur GitHub Pages.
 - **Gain net, pas MP brute.** Les accessoires vont par lignes (Talisman → Ring → Artifact → Relic)
   et seul le tier le plus haut compte. Posséder le Bat Talisman (8 MP) et acheter le Bat Ring
   (12 MP) rapporte **4 MP**, pas 12.
-- **Deux tableaux distincts**, classés par le même critère :
+- **Tableaux séparés selon la façon dont l'accessoire s'obtient** :
   - **Nouveaux accessoires** — vous ne possédez aucun tier de la ligne, chaque achat occupe un slot.
   - **Améliorations** — vous portez déjà un tier inférieur, l'achat le remplace et ne consomme
     aucun slot. Quand le sac est plein, c'est le seul tableau qui compte encore.
+  - **Accessoires du Rift** — repérés par `origin === "RIFT"` dans le catalogue Hypixel. Ils
+    s'achètent en motes à l'intérieur du Rift et non en coins : un ratio coins/MP n'aurait aucun
+    sens pour eux. Ils sont donc exclus du classement principal **et de la sélection par budget**,
+    et triés par MP gagnée. Toute la ligne Crux (Talisman → Ring → Artifact → Relic → Heirloom →
+    Chronomicon → Celestial Starstone) en fait partie.
+  - **À obtenir en jeu** — soulbound ou non échangeables, avec la méthode d'obtention déduite.
 - **Budget.** Saisissez `50m`, `1.2b` ou `250000000` : l'app sélectionne gloutonnement par ratio
   la meilleure combinaison d'achats dans ce budget, en piochant dans les deux tableaux, et met
   les lignes retenues en évidence. **Un seul achat par ligne** : les gains d'une même ligne ne
@@ -115,9 +121,10 @@ un navigateur. D'où le passage par des miroirs qui, eux, en envoient.
 **Cas particuliers codés explicitement :**
 
 - **Hegemony Artifact** : MP doublée (32 au lieu de 16).
-- **Rift Prism** : +11 MP s'il est imbué chez Erihann, ne prend aucun slot, non recombobulable
-  et invendable après imbuage. Détecté via `rift.access.consumed_prism`. Si le joueur ne l'a pas,
-  l'app l'affiche en tête comme gain gratuit.
+- **Rift Prism** : +11 MP une fois imbué chez Erihann, et ne prend aucun slot. Détecté via
+  `rift.access.consumed_prism` — le prisme étant consommé à l'imbuage, il ne se trouve pas dans
+  le sac. S'il est déjà imbué, les 11 MP sont comptées et l'objet disparaît des candidats ;
+  sinon il apparaît dans la section Rift à 11 MP et sans slot.
 - **Abicase** : +1 MP par tranche de 2 contacts de l'Abiphone, lu depuis
   `nether_island_player_data.abiphone.active_contacts`. Ignorée si le joueur n'a aucun contact.
 - **Accessoires de donjon** : MP doublée en donjon uniquement. Le tableau affiche la valeur

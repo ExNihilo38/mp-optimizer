@@ -257,6 +257,7 @@ const FAMILY_FIX = (() => {
 })();
 
 const HEGEMONY = "HEGEMONY_ARTIFACT";
+const RIFT_PRISM = "RIFT_PRISM";
 const RIFT_PRISM_MP = 11;
 
 /* ══════════════════════════════════════════════════════════════════
@@ -287,6 +288,9 @@ const I18N = {
     secUpD:"Vous possédez déjà un tier inférieur : le gain affiché est net, et aucun slot n'est consommé.",
     secNoneNew:"Aucun nouvel accessoire achetable.",
     secNoneUp:"Aucune amélioration disponible.",
+    secRift:"Accessoires du Rift",
+    secRiftD:"Achetables en motes à l'intérieur du Rift, pas en coins : exclus du classement par ratio et du budget.",
+    secNoneRift:"Aucun accessoire du Rift à récupérer.",
     upgrade:"Amélioration", dungeon:"Donjon ×2", noSlot:"Sans slot",
     budgetPick:"Sélection dans le budget",
     budgetNone:"Aucun accessoire n'entre dans ce budget.",
@@ -306,9 +310,6 @@ const I18N = {
     howAh:"Hôtel des ventes", howBz:"Bazaar",
     obtSoul:"Soulbound — non échangeable", obtNoAuc:"Non vendable à l'hôtel des ventes",
     obtRift:"Le Rift", obtDungeon:"Donjons", obtUnknown:"En jeu uniquement",
-    prismDone:"Rift Prism déjà imbué (+11 MP, sans slot)",
-    prismTodo:"Rift Prism non imbué : +11 MP gratuites, sans slot",
-    prismDesc:"Récupérez le Rift Prism dans le Rift et faites-le imbuer par <b>Erihann</b>. Il ne prend aucun slot, ne peut pas être recombobulé, et devient invendable une fois imbué.",
     abicase:"Abicase : {n} contacts → {mp} MP"
   },
   en: {
@@ -334,6 +335,9 @@ const I18N = {
     secUpD:"You already own a lower tier: the gain shown is net, and no slot is consumed.",
     secNoneNew:"No new purchasable accessory.",
     secNoneUp:"No upgrade available.",
+    secRift:"Rift accessories",
+    secRiftD:"Bought with motes inside the Rift, not with coins: excluded from the ratio ranking and the budget.",
+    secNoneRift:"No Rift accessory left to grab.",
     upgrade:"Upgrade", dungeon:"Dungeon ×2", noSlot:"No slot",
     budgetPick:"Selection within budget",
     budgetNone:"No accessory fits in this budget.",
@@ -353,9 +357,6 @@ const I18N = {
     howAh:"Auction house", howBz:"Bazaar",
     obtSoul:"Soulbound — not tradeable", obtNoAuc:"Cannot be auctioned",
     obtRift:"The Rift", obtDungeon:"Dungeons", obtUnknown:"In game only",
-    prismDone:"Rift Prism already imbued (+11 MP, no slot)",
-    prismTodo:"Rift Prism not imbued: +11 free MP, no slot",
-    prismDesc:"Grab the Rift Prism in the Rift and have <b>Erihann</b> imbue it. It takes no slot, cannot be recombobulated, and becomes unsellable once imbued.",
     abicase:"Abicase: {n} contacts → {mp} MP"
   }
 };
@@ -371,6 +372,11 @@ const HELP = {
       déjà un tier inférieur : l'achat remplace l'existant et ne consomme aucun slot supplémentaire.
       Quand votre sac est plein, le second tableau contient les seuls achats encore possibles sans
       payer d'extension. Les deux sont classés par le même critère et le budget pioche dans les deux.</p>
+   <p><b>Les accessoires du Rift ont leur propre section</b>, parce qu'ils s'achètent en motes à
+      l'intérieur du Rift et non en coins. Un ratio coins/MP serait dénué de sens pour eux : ils
+      sont donc exclus du classement principal et de la sélection par budget, et triés par MP
+      gagnée. La ligne Crux (Talisman → Ring → Artifact → Relic → Heirloom → Chronomicon →
+      Celestial Starstone) en fait partie.</p>
    <p><b>Donjon ×2</b> : la MP de ces accessoires est doublée à l'intérieur des donjons uniquement.
       Le tableau affiche la valeur hors donjon, la valeur doublée est indiquée entre parenthèses.</p>
    <p><b>Le Recombobulator 3000 n'est jamais proposé.</b> Il monte un accessoire d'un cran de rareté,
@@ -391,6 +397,11 @@ const HELP = {
       existing one and consumes no extra slot. When your bag is full, the second table holds the
       only buys still possible without paying for an expansion. Both are ranked by the same
       criterion, and the budget picks from both.</p>
+   <p><b>Rift accessories get their own section</b>, because they are bought with motes inside the
+      Rift, not with coins. A coins/MP ratio would be meaningless for them, so they are excluded
+      from the main ranking and from the budget selection, and sorted by MP gained. The Crux line
+      (Talisman → Ring → Artifact → Relic → Heirloom → Chronomicon → Celestial Starstone) belongs
+      to it.</p>
    <p><b>Dungeon ×2</b>: these accessories have doubled MP inside dungeons only. The table shows the
       overworld value, with the doubled value in parentheses.</p>
    <p><b>The Recombobulator 3000 is never suggested.</b> It raises one accessory by a single rarity
@@ -688,6 +699,7 @@ const baseMP = it => MP_BY_TIER[tierOf(it)] ?? 3;
 function mpOf(it, ctx) {
   if (it.id === HEGEMONY) return baseMP(it) * 2;            // Hegemony : MP doublée
   if (it.id === "ABICASE") return Math.floor((ctx.contacts || 0) / 2); // +1 MP / 2 contacts
+  if (it.id === RIFT_PRISM) return RIFT_PRISM_MP;           // 11 MP une fois imbué, sans slot
   return baseMP(it);
 }
 
@@ -756,14 +768,14 @@ function buildModel(items, profile) {
   let currentMP = soloMP;
   for (const v of bestInFam.values()) currentMP += v.mp;
 
+  // Le prisme est consommé à l'imbuage : il ne se trouve pas dans le sac, mais compte quand même.
   const notes = [];
-  if (profile.hasPrism) { currentMP += RIFT_PRISM_MP; notes.push({ ok:true,  text:T("prismDone") }); }
-  else                  { notes.push({ ok:false, text:T("prismTodo"), desc:T("prismDesc") }); }
+  if (profile.hasPrism) { currentMP += RIFT_PRISM_MP; ownedIds.add(RIFT_PRISM); }
   if (contacts > 0 && ownedIds.has("ABICASE"))
     notes.push({ ok:true, text:T("abicase", { n:contacts, mp:Math.floor(contacts/2) }) });
 
   // --- Candidats : ce qu'il manque, avec le gain net ---
-  const rows = [], locked = [];
+  const rows = [], locked = [], rift = [];
 
   for (const it of items) {
     if (ownedIds.has(it.id)) continue;
@@ -783,13 +795,17 @@ function buildModel(items, profile) {
       id: it.id, name: it.name, tier: tierOf(it),
       mp: gain, mpFull: full, dungeon: it.dungeon,
       fam: fam ? fam.key : null,    // pour n'acheter qu'un seul tier par ligne
-      takesSlot: !best,             // remplacer un tier inférieur ne consomme pas de slot
+      // Remplacer un tier inférieur ne consomme pas de slot ; le prisme n'en prend jamais.
+      takesSlot: it.id === RIFT_PRISM ? false : !best,
       isUpgrade: !!best,
       price: undefined,             // undefined = en cours, null = aucune vente
       source: null, ratio: Infinity
     };
 
-    if (isTradeable(it)) rows.push(row);
+    // Les accessoires du Rift s'achètent en motes à l'intérieur du Rift : leur prix en coins
+    // n'existe pas. Ils ont leur propre section et sont exclus du ratio comme du budget.
+    if (it.rift) rift.push(row);
+    else if (isTradeable(it)) rows.push(row);
     else { row.how = howToGet(it); locked.push(row); }
   }
 
@@ -797,7 +813,7 @@ function buildModel(items, profile) {
   // au nombre de slots (observé à 99 pour un sac contenant 113 accessoires), et la longueur
   // de la liste NBT est un tampon d'allocation. On affiche donc le nombre porté, pas les
   // slots libres, plutôt que d'inventer un chiffre.
-  return { currentMP, rows, locked, notes, worn: ownedIds.size };
+  return { currentMP, rows, locked, rift, notes, worn: ownedIds.size };
 }
 
 // Glouton par ratio : on prend le meilleur coût/MP tant que le budget le permet.
@@ -988,9 +1004,11 @@ function renderResults() {
     for (const r of list) h += rowHTML(r, state.pick.ids.has(r.id));
     return h + `</tbody></table></div>`;
   };
+  const heading = (titleKey, descKey, n) =>
+    `<h2>${T(titleKey)}<span class="count">${n}</span>` +
+    `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T(descKey)}</span></h2>`;
   const section = (titleKey, descKey, list, emptyKey) =>
-    `<h2>${T(titleKey)}<span class="count">${list.length}</span>` +
-    `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T(descKey)}</span></h2>` +
+    heading(titleKey, descKey, list.length) +
     (list.length ? table(list) : `<div class="msg msg-info">${T(emptyKey)}</div>`);
 
   if (!m.rows.length) {
@@ -1006,26 +1024,36 @@ function renderResults() {
       html += `<div style="color:var(--dim);font-size:12.5px;margin-top:9px">${T("pricesPartial",{n:noPrice})}</div>`;
   }
 
-  if (m.locked.length) {
-    html += `<h2>${T("secSoul")}<span class="count">${m.locked.length}</span>` +
-            `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T("secSoulD")}</span></h2>`;
-    html += `<div class="tablewrap"><table><thead><tr>
+  // Sections sans prix en coins : tri fixe par MP décroissante, le ratio n'ayant pas de sens.
+  const plainTable = (list, lastLabel, lastCell) => {
+    let h = `<div class="tablewrap"><table><thead><tr>
       <th style="cursor:default">${T("thName")}</th>
       <th style="cursor:default">${T("thTier")}</th>
       <th style="cursor:default;text-align:right">${T("thMp")}</th>
-      <th style="cursor:default">${T("thHow")}</th>
+      <th style="cursor:default">${T(lastLabel)}</th>
     </tr></thead><tbody>`;
-    const lk = m.locked.slice().sort((a,b) => b.mp - a.mp || a.name.localeCompare(b.name));
-    for (const r of lk) {
-      html += `<tr>
+    for (const r of list.slice().sort((a,b) => b.mp - a.mp || a.name.localeCompare(b.name))) {
+      h += `<tr>
         <td><span class="name">${esc(r.name)}</span>${
           r.isUpgrade ? `<span class="badge b-up">${T("upgrade")}</span>` : ""}</td>
         <td style="color:${tierColor(r.tier)};font-weight:600">${esc(tierLabel(r.tier))}</td>
         <td class="num">${fmtNum(r.mp)}${r.dungeon ? ` <span class="badge b-dj">${T("dungeon")} ${fmtNum(r.mp*2)}</span>` : ""}</td>
-        <td style="color:var(--muted)">${esc(r.how)}</td>
+        ${lastCell(r)}
       </tr>`;
     }
-    html += `</tbody></table></div>`;
+    return h + `</tbody></table></div>`;
+  };
+
+  if (m.rift.length) {
+    html += heading("secRift", "secRiftD", m.rift.length);
+    html += plainTable(m.rift, "thSlot",
+      r => `<td class="${r.takesSlot ? "yes" : "no"}">${r.takesSlot ? T("yes") : T("no")}</td>`);
+  }
+
+  if (m.locked.length) {
+    html += heading("secSoul", "secSoulD", m.locked.length);
+    html += plainTable(m.locked, "thHow",
+      r => `<td style="color:var(--muted)">${esc(r.how)}</td>`);
   }
 
   $("#results").innerHTML = html;
