@@ -19,10 +19,15 @@ déployable tel quel sur GitHub Pages.
 - **Gain net, pas MP brute.** Les accessoires vont par lignes (Talisman → Ring → Artifact → Relic)
   et seul le tier le plus haut compte. Posséder le Bat Talisman (8 MP) et acheter le Bat Ring
   (12 MP) rapporte **4 MP**, pas 12.
-- **Signalement des achats sans slot.** Remplacer un tier inférieur ne consomme aucun slot du sac.
-  Ces lignes portent un badge « Amélioration » — l'information décisive quand le sac est plein.
+- **Deux tableaux distincts**, classés par le même critère :
+  - **Nouveaux accessoires** — vous ne possédez aucun tier de la ligne, chaque achat occupe un slot.
+  - **Améliorations** — vous portez déjà un tier inférieur, l'achat le remplace et ne consomme
+    aucun slot. Quand le sac est plein, c'est le seul tableau qui compte encore.
 - **Budget.** Saisissez `50m`, `1.2b` ou `250000000` : l'app sélectionne gloutonnement par ratio
-  la meilleure combinaison d'achats dans ce budget et met les lignes en évidence.
+  la meilleure combinaison d'achats dans ce budget, en piochant dans les deux tableaux, et met
+  les lignes retenues en évidence. **Un seul achat par ligne** : les gains d'une même ligne ne
+  s'additionnent pas. Si le budget le permet, la sélection monte vers un tier supérieur de la
+  même ligne en ne payant que la différence de prix.
 - **Encadré récapitulatif** : MP actuelle, MP après achats, et multiplicateur de stats avant/après
   avec la formule officielle `29.97 × ln(0.0019 × MP + 1)^1.2`, plus le gain en pourcentage.
   C'est ce pourcentage qui montre quand la MP cesse d'être rentable.
@@ -123,11 +128,21 @@ un navigateur. D'où le passage par des miroirs qui, eux, en envoient.
   d'un seul cran pour un prix qui dépasse systématiquement celui d'un accessoire neuf offrant
   le même gain : c'est toujours le pire coût par MP. Il est mentionné uniquement dans l'aide.
 
-**Construction des lignes d'accessoires** — par préfixe de nom + suffixe
-(`Talisman` → `Ring` → `Artifact` → `Relic`), ce qui couvre 55 lignes automatiquement.
-Une table de correction manuelle (`FAMILY_FIX`) traite les séries que cette règle ne peut pas
-déduire : Master Skull, Personal Compactor/Deletor, Wedding Ring, Crux, Campfire et Soul
-Campfire Badges, Beastmaster Crest, colliers de dents de requin.
+**Construction des lignes d'accessoires** — trois règles successives :
+
+1. **Préfixe + suffixe** : `Badge`/`Talisman` → `Ring` → `Artifact` → `Relic` → `Heirloom`.
+   Couvre 55 lignes automatiquement. `Badge` est le premier échelon de certaines lignes
+   (Pesthunter Badge → Ring → Artifact → Relic) et `Heirloom` l'échelon au-dessus de Relic,
+   confirmé par la ligne Crux où *Crux Heirloom* (LEGENDARY) suit *Crux Relic* (EPIC).
+2. **Motif « X of Y »**, où le suffixe est en tête de nom :
+   *Talisman of Coins* → *Ring of Coins* → *Artifact of Coins* → *Relic of Coins*.
+   Récupère les lignes Coins, Power, Century et Space, invisibles pour la règle 1.
+3. **Table de correction manuelle** (`FAMILY_FIX`) pour les séries qu'aucune règle de nommage
+   ne peut déduire : Master Skull, Personal Compactor/Deletor, Wedding Ring, Crux, Campfire et
+   Soul Campfire Badges, Beastmaster Crest, colliers de dents de requin, **accessoires Chocolate**
+   (Nibble Stick → Smooth Bar → Rich Chunk → Ganache Slab → Prestige Realm), Voter's Badge,
+   Fish Bowl, Kuudra Core, et Piggy Bank — ce dernier se dégradant au lieu de s'améliorer,
+   l'exemplaire intact est le meilleur état.
 
 **Raretés manquantes** — 38 accessoires du catalogue Hypixel n'ont **aucun champ `tier`**
 (les anciens talismans : Zombie, Speed, Scavenger, Master Skull I/II…). Une table

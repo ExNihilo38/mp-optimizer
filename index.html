@@ -195,7 +195,15 @@ const RECOMB_NEXT = { COMMON:"UNCOMMON", UNCOMMON:"RARE", RARE:"EPIC", EPIC:"LEG
                       LEGENDARY:"MYTHIC", MYTHIC:"SUPREME" };
 
 // Rang au sein d'une ligne d'accessoires : seul le plus haut tier possédé compte.
-const SUFFIX_RANK = { Talisman:0, Ring:1, Artifact:2, Relic:3 };
+// « Badge » est le premier échelon de certaines lignes (Pesthunter Badge → Ring → …).
+// « Heirloom » est l'échelon au-dessus de Relic (confirmé par la ligne Crux, où
+// Crux Heirloom est LEGENDARY juste après Crux Relic, EPIC).
+const SUFFIX_RANK = { Talisman:0, Badge:0, Ring:1, Artifact:2, Relic:3, Heirloom:4 };
+const SUFFIX_RE = /^(.*?)\s+(Talisman|Badge|Ring|Artifact|Relic|Heirloom)$/;
+
+// Variante « X of Y » : Talisman of Coins → Ring of Coins → Artifact of Coins → Relic of Coins.
+// Le suffixe est ici en tête de nom, la règle précédente ne peut pas le voir.
+const OF_RE = /^(Talisman|Badge|Ring|Artifact|Relic|Heirloom) of (?:the )?(.+)$/;
 
 // Raretés manquantes dans l'API Hypixel (38 accessoires, surtout les anciens talismans).
 // Sans override ils tomberaient sur COMMON par défaut ; on l'explicite pour les cas sûrs.
@@ -236,6 +244,15 @@ const FAMILY_FIX = (() => {
   ["RAGGEDY","DULL","HONED","SHARP","RAZOR_SHARP"].forEach((p,i) => {
     m[p+"_SHARK_TOOTH_NECKLACE"] = ["SHARK_TOOTH_NECKLACE", i];
   });
+  // Lignes dont aucun nom ne porte de suffixe reconnaissable.
+  const line = (key, ids) => ids.forEach((id,i) => { m[id] = [key, i]; });
+  line("CHOCOLATE", ["NIBBLE_CHOCOLATE_STICK","SMOOTH_CHOCOLATE_BAR","RICH_CHOCOLATE_CHUNK",
+                     "GANACHE_CHOCOLATE_SLAB","PRESTIGE_CHOCOLATE_REALM"]);
+  line("VOTER_BADGE",  ["VOTER_BADGE","VOTER_BADGE_VIP","VOTER_BADGE_ELITE","VOTER_BADGE_SUPREME"]);
+  line("FISH_BOWL",    ["SMALL_FISH_BOWL","MEDIUM_FISH_BOWL","LARGE_FISH_BOWL"]);
+  line("KUUDRA_CORE",  ["BURNING_KUUDRA_CORE","FIERY_KUUDRA_CORE","INFERNAL_KUUDRA_CORE"]);
+  // Le Piggy Bank se dégrade au lieu de s'améliorer : l'intact est le meilleur état.
+  line("PIGGY_BANK",   ["BROKEN_PIGGY_BANK","CRACKED_PIGGY_BANK","PIGGY_BANK"]);
   return m;
 })();
 
@@ -262,9 +279,14 @@ const I18N = {
     thName:"Accessoire", thTier:"Rareté", thMp:"MP gagnée", thPrice:"Prix",
     thRatio:"Coins / MP", thSlot:"Prend un slot", thHow:"Comment l'obtenir",
     yes:"Oui", no:"Non", noPrice:"Aucune vente",
-    secBuy:"À acheter", secSoul:"À obtenir en jeu",
-    secBuyD:"Triable en cliquant sur les en-têtes de colonne.",
+    secSoul:"À obtenir en jeu",
     secSoulD:"Non échangeables : exclus du classement par ratio.",
+    secNew:"Nouveaux accessoires",
+    secNewD:"Vous ne possédez aucun tier de ces lignes : chaque achat occupe un slot.",
+    secUp:"Améliorations",
+    secUpD:"Vous possédez déjà un tier inférieur : le gain affiché est net, et aucun slot n'est consommé.",
+    secNoneNew:"Aucun nouvel accessoire achetable.",
+    secNoneUp:"Aucune amélioration disponible.",
     upgrade:"Amélioration", dungeon:"Donjon ×2", noSlot:"Sans slot",
     budgetPick:"Sélection dans le budget",
     budgetNone:"Aucun accessoire n'entre dans ce budget.",
@@ -304,9 +326,14 @@ const I18N = {
     thName:"Accessory", thTier:"Rarity", thMp:"MP gained", thPrice:"Price",
     thRatio:"Coins / MP", thSlot:"Takes a slot", thHow:"How to get it",
     yes:"Yes", no:"No", noPrice:"No listing",
-    secBuy:"To buy", secSoul:"Obtain in game",
-    secBuyD:"Sortable by clicking the column headers.",
+    secSoul:"Obtain in game",
     secSoulD:"Not tradeable: excluded from the ratio ranking.",
+    secNew:"New accessories",
+    secNewD:"You own no tier of these lines: every buy takes a slot.",
+    secUp:"Upgrades",
+    secUpD:"You already own a lower tier: the gain shown is net, and no slot is consumed.",
+    secNoneNew:"No new purchasable accessory.",
+    secNoneUp:"No upgrade available.",
     upgrade:"Upgrade", dungeon:"Dungeon ×2", noSlot:"No slot",
     budgetPick:"Selection within budget",
     budgetNone:"No accessory fits in this budget.",
@@ -339,9 +366,11 @@ const HELP = {
    <p><b>MP gagnée</b> n'est pas la MP de l'accessoire, c'est le <i>gain net</i>. Seul le tier
       le plus haut d'une ligne compte (Talisman → Ring → Artifact → Relic). Si vous possédez déjà
       le Bat Talisman (3 MP) et achetez le Bat Ring (5 MP), le gain est de 2, pas de 5.</p>
-   <p><b>Prend un slot</b> : les achats marqués <span class="badge b-up">Amélioration</span>
-      remplacent un accessoire déjà présent dans le sac et ne consomment aucun slot supplémentaire.
-      Quand votre sac est plein, ce sont les seuls achats encore possibles sans payer d'extension.</p>
+   <p><b>Les deux tableaux.</b> « Nouveaux accessoires » regroupe les lignes dont vous ne possédez
+      aucun tier : chaque achat occupe un slot. « Améliorations » regroupe les lignes où vous portez
+      déjà un tier inférieur : l'achat remplace l'existant et ne consomme aucun slot supplémentaire.
+      Quand votre sac est plein, le second tableau contient les seuls achats encore possibles sans
+      payer d'extension. Les deux sont classés par le même critère et le budget pioche dans les deux.</p>
    <p><b>Donjon ×2</b> : la MP de ces accessoires est doublée à l'intérieur des donjons uniquement.
       Le tableau affiche la valeur hors donjon, la valeur doublée est indiquée entre parenthèses.</p>
    <p><b>Le Recombobulator 3000 n'est jamais proposé.</b> Il monte un accessoire d'un cran de rareté,
@@ -357,9 +386,11 @@ const HELP = {
    <p><b>MP gained</b> is not the accessory's MP, it's the <i>net gain</i>. Only the highest tier
       in a line counts (Talisman → Ring → Artifact → Relic). If you already own the Bat Talisman
       (3 MP) and buy the Bat Ring (5 MP), the gain is 2, not 5.</p>
-   <p><b>Takes a slot</b>: purchases tagged <span class="badge b-up">Upgrade</span> replace an
-      accessory already in the bag and consume no extra slot. When your bag is full, those are the
-      only buys still possible without paying for an expansion.</p>
+   <p><b>The two tables.</b> “New accessories” holds the lines you own no tier of: every buy takes
+      a slot. “Upgrades” holds the lines where you already wear a lower tier: the buy replaces the
+      existing one and consumes no extra slot. When your bag is full, the second table holds the
+      only buys still possible without paying for an expansion. Both are ranked by the same
+      criterion, and the budget picks from both.</p>
    <p><b>Dungeon ×2</b>: these accessories have doubled MP inside dungeons only. The table shows the
       overworld value, with the doubled value in parentheses.</p>
    <p><b>The Recombobulator 3000 is never suggested.</b> It raises one accessory by a single rarity
@@ -664,8 +695,10 @@ function mpOf(it, ctx) {
 function familyOf(it) {
   const fix = FAMILY_FIX[it.id];
   if (fix) return { key: fix[0], rank: fix[1] };
-  const m = it.name.match(/^(.*?)\s+(Talisman|Ring|Artifact|Relic)$/);
+  const m = it.name.match(SUFFIX_RE);
   if (m) return { key: "N:" + m[1].toUpperCase(), rank: SUFFIX_RANK[m[2]] };
+  const o = it.name.match(OF_RE);
+  if (o) return { key: "O:" + o[2].toUpperCase(), rank: SUFFIX_RANK[o[1]] };
   return null;
 }
 
@@ -749,6 +782,7 @@ function buildModel(items, profile) {
     const row = {
       id: it.id, name: it.name, tier: tierOf(it),
       mp: gain, mpFull: full, dungeon: it.dungeon,
+      fam: fam ? fam.key : null,    // pour n'acheter qu'un seul tier par ligne
       takesSlot: !best,             // remplacer un tier inférieur ne consomme pas de slot
       isUpgrade: !!best,
       price: undefined,             // undefined = en cours, null = aucune vente
@@ -774,11 +808,23 @@ function greedy(rows, budget) {
     .slice()
     .sort((a, b) => a.ratio - b.ratio);
 
-  const ids = new Set();
+  const ids = new Set(), famPick = new Map();
   let left = budget, cost = 0, mp = 0, needSlots = 0;
+
   for (const r of sorted) {
-    if (r.price <= left) {
-      ids.add(r.id); left -= r.price; cost += r.price; mp += r.mp;
+    const prev = r.fam ? famPick.get(r.fam) : null;
+    if (prev) {
+      // Ligne déjà servie : les gains ne s'additionnent pas. On ne peut que monter
+      // vers un tier supérieur, en ne payant que la différence de prix.
+      const dMP = r.mp - prev.mp, dCost = r.price - prev.price;
+      if (dMP > 0 && dCost <= left) {
+        ids.delete(prev.id); ids.add(r.id); famPick.set(r.fam, r);
+        left -= dCost; cost += dCost; mp += dMP;
+      }
+    } else if (r.price <= left) {
+      ids.add(r.id);
+      if (r.fam) famPick.set(r.fam, r);
+      left -= r.price; cost += r.price; mp += r.mp;
       if (r.takesSlot) needSlots++;
     }
   }
@@ -911,8 +957,7 @@ function rowHTML(r, picked) {
   const ratioCell = (r.price > 0 && r.mp > 0) ? fmtCoins(r.ratio) : `<span class="nop">—</span>`;
 
   return `<tr class="${picked ? "pick" : ""}">
-    <td><span class="name">${esc(r.name)}</span>${
-      r.isUpgrade ? `<span class="badge b-up">${T("upgrade")}</span>` : ""}</td>
+    <td><span class="name">${esc(r.name)}</span></td>
     <td style="color:${tierColor(r.tier)};font-weight:600">${esc(tierLabel(r.tier))}</td>
     <td class="num">${mpCell}</td>
     <td class="num">${priceCell}</td>
@@ -930,24 +975,32 @@ function renderResults() {
 
   let html = "";
 
+  // Deux catégories, chacune classée par le même critère : ce qu'on ne possède pas
+  // du tout (un slot par achat) et ce qui remplace un tier déjà porté (aucun slot).
+  const table = list => {
+    let h = `<div class="tablewrap"><table><thead><tr>`;
+    for (const c of COLS) {
+      const active = state.sortKey === c.key;
+      h += `<th data-sort="${c.key}"${c.num ? ' style="text-align:right"' : ""}>${T(c.label)}` +
+           (active ? ` <span class="ar">${state.sortDir > 0 ? "▲" : "▼"}</span>` : "") + `</th>`;
+    }
+    h += `</tr></thead><tbody>`;
+    for (const r of list) h += rowHTML(r, state.pick.ids.has(r.id));
+    return h + `</tbody></table></div>`;
+  };
+  const section = (titleKey, descKey, list, emptyKey) =>
+    `<h2>${T(titleKey)}<span class="count">${list.length}</span>` +
+    `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T(descKey)}</span></h2>` +
+    (list.length ? table(list) : `<div class="msg msg-info">${T(emptyKey)}</div>`);
+
   if (!m.rows.length) {
     html += `<div class="msg msg-info">${T("nothingMissing")}</div>`;
   } else {
-    html += `<h2>${T("secBuy")}<span class="count">${m.rows.length}</span>` +
-            `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T("secBuyD")}</span></h2>`;
-
     if (state.budget && !state.pick.ids.size)
       html += `<div class="msg msg-warn">${T("budgetNone")}</div>`;
 
-    html += `<div class="tablewrap"><table><thead><tr>`;
-    for (const c of COLS) {
-      const active = state.sortKey === c.key;
-      html += `<th data-sort="${c.key}"${c.num ? ' style="text-align:right"' : ""}>${T(c.label)}` +
-              (active ? ` <span class="ar">${state.sortDir > 0 ? "▲" : "▼"}</span>` : "") + `</th>`;
-    }
-    html += `</tr></thead><tbody>`;
-    for (const r of rows) html += rowHTML(r, state.pick.ids.has(r.id));
-    html += `</tbody></table></div>`;
+    html += section("secNew", "secNewD", rows.filter(r => !r.isUpgrade), "secNoneNew");
+    html += section("secUp",  "secUpD",  rows.filter(r =>  r.isUpgrade), "secNoneUp");
 
     if (noPrice)
       html += `<div style="color:var(--dim);font-size:12.5px;margin-top:9px">${T("pricesPartial",{n:noPrice})}</div>`;
