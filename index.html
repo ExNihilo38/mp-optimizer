@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MP Optimizer — Hypixel SkyBlock</title>
+<meta name="description" content="Trouvez quels accessoires acheter en premier pour maximiser votre Magical Power sur Hypixel SkyBlock.">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#2a323d;
+    --text:#e6edf3; --muted:#8b949e; --dim:#6e7681;
+    --accent:#3fb950; --accent-dim:#238636; --blue:#58a6ff;
+    --warn:#d29922; --bad:#f85149; --purple:#bc8cff;
+    --r-common:#c9d1d9; --r-uncommon:#55ff55; --r-rare:#5599ff; --r-epic:#c355ff;
+    --r-legendary:#ffaa00; --r-mythic:#ff77ff; --r-supreme:#33ffdd; --r-special:#ff5555;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; padding-bottom:60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px}
+  a{color:var(--blue)}
+
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:22px;margin:0;letter-spacing:-.3px}
+  h1 span{color:var(--accent)}
+  .tagline{color:var(--muted);font-size:13px;margin:0 0 20px;max-width:70ch}
+  .spacer{flex:1}
+  button,input,select{font-family:inherit;font-size:14px}
+  .btn{
+    background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:9px 14px;cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:#252d3b;border-color:#3d4757}
+  .btn-primary{background:var(--accent-dim);border-color:var(--accent-dim);color:#fff;font-weight:600}
+  .btn-primary:hover{background:var(--accent);border-color:var(--accent)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+  .btn-sm{padding:5px 10px;font-size:12.5px}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+
+  .searchbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.2px}
+  .field input,.field select{
+    background:var(--bg);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:9px 11px;min-width:190px;
+  }
+  .field input:focus,.field select:focus{outline:none;border-color:var(--blue)}
+  .field-grow{flex:1;min-width:190px}
+  .field-grow input{width:100%;min-width:0}
+
+  .msg{border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:14px;border:1px solid;line-height:1.55}
+  .msg-err{background:rgba(248,81,73,.09);border-color:rgba(248,81,73,.4);color:#ffb3ae}
+  .msg-warn{background:rgba(210,153,34,.09);border-color:rgba(210,153,34,.4);color:#f0cc84}
+  .msg-info{background:rgba(88,166,255,.08);border-color:rgba(88,166,255,.35);color:#a9d0ff}
+  .msg b{color:#fff}
+  .msg ul{margin:8px 0 0;padding-left:20px}
+  .msg li{margin:3px 0}
+
+  .loader{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:14px;padding:6px 0}
+  .spin{
+    width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:sp .7s linear infinite;flex:none;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:9px}
+  .bar>i{display:block;height:100%;background:var(--accent);transition:width .25s}
+
+  /* summary */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px}
+  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:12px 13px}
+  .stat .k{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .stat .v{font-size:21px;font-weight:700;margin-top:3px;letter-spacing:-.4px}
+  .stat .d{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .up{color:var(--accent)}
+  .warnc{color:var(--warn)}
+
+  h2{font-size:16px;margin:26px 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .count{background:var(--panel2);border:1px solid var(--border);color:var(--muted);
+    font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:720px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{
+    background:var(--panel2);color:var(--muted);font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.4px;font-weight:700;cursor:pointer;user-select:none;position:sticky;top:0;z-index:2;
+  }
+  th:hover{color:var(--text)}
+  th .ar{color:var(--accent);font-size:10px}
+  tbody tr:hover{background:rgba(255,255,255,.028)}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pick{background:rgba(63,185,80,.10)!important}
+  .pick td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .name{font-weight:600;color:var(--text)}
+  .badge{
+    display:inline-block;font-size:10.5px;font-weight:700;padding:1.5px 6px;border-radius:5px;
+    margin-left:6px;vertical-align:1px;letter-spacing:.3px;
+  }
+  .b-up{background:rgba(88,166,255,.16);color:#8cc2ff;border:1px solid rgba(88,166,255,.3)}
+  .b-dj{background:rgba(188,140,255,.14);color:var(--purple);border:1px solid rgba(188,140,255,.3)}
+  .b-sp{background:rgba(210,153,34,.14);color:var(--warn);border:1px solid rgba(210,153,34,.3)}
+  .yes{color:var(--warn)} .no{color:var(--accent)}
+  .nop{color:var(--dim);font-style:italic}
+  .src{font-size:10.5px;color:var(--dim);margin-left:5px}
+
+  details.help{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:0;margin-bottom:16px}
+  details.help summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;gap:9px;align-items:center}
+  details.help summary::-webkit-details-marker{display:none}
+  details.help summary::before{content:"▸";color:var(--accent);font-size:12px;transition:.15s}
+  details.help[open] summary::before{transform:rotate(90deg)}
+  details.help .body{padding:0 16px 16px;font-size:13.5px;color:var(--muted);line-height:1.65}
+  details.help .body b{color:var(--text)}
+  details.help .body ul{padding-left:20px;margin:8px 0}
+
+  footer{color:var(--dim);font-size:12.5px;text-align:center;margin-top:34px;line-height:1.8}
+  .hidden{display:none!important}
+
+  @media (max-width:640px){
+    .wrap{padding:14px 11px}
+    h1{font-size:19px}
+    .field input,.field select{min-width:0;width:100%}
+    .field,.field-grow{width:100%}
+    .searchbar .btn-primary{width:100%}
+    .stat .v{font-size:18px}
+    th,td{padding:8px 10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>MP <span>Optimizer</span></h1>
+    <div class="spacer"></div>
+    <button class="btn btn-sm" id="langBtn">English</button>
+  </header>
+  <p class="tagline" data-i18n="tagline"></p>
+
+  <div class="card">
+    <div class="searchbar">
+      <div class="field field-grow">
+        <label for="user" data-i18n="lblUser"></label>
+        <input id="user" type="text" autocomplete="off" spellcheck="false" placeholder="Refraction">
+      </div>
+      <div class="field">
+        <label for="budget" data-i18n="lblBudget"></label>
+        <input id="budget" type="text" inputmode="numeric" autocomplete="off" placeholder="50m / 250000000">
+      </div>
+      <div class="field hidden" id="profWrap">
+        <label for="prof" data-i18n="lblProfile"></label>
+        <select id="prof"></select>
+      </div>
+      <button class="btn btn-primary" id="go" data-i18n="btnSearch"></button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <div id="summary"></div>
+  <div id="results"></div>
+
+  <details class="help">
+    <summary data-i18n="helpTitle"></summary>
+    <div class="body" id="helpBody"></div>
+  </details>
+
+  <footer>
+    <div data-i18n="footNote"></div>
+    <div style="margin-top:5px" data-i18n="footSrc"></div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════
+   1. RÈGLES MÉTIER
+   ══════════════════════════════════════════════════════════════════ */
+
+// Magical Power par rareté. SUPREME n'est pas documenté par Hypixel :
+// il n'existe qu'un seul item (Celestial Starstone) et il est aligné sur MYTHIC.
+const MP_BY_TIER = {
+  COMMON: 3, UNCOMMON: 5, RARE: 8, EPIC: 12, LEGENDARY: 16,
+  MYTHIC: 22, SUPREME: 22, SPECIAL: 3, VERY_SPECIAL: 5
+};
+
+const TIER_ORDER = ["COMMON","UNCOMMON","RARE","EPIC","LEGENDARY","MYTHIC","SUPREME","SPECIAL","VERY_SPECIAL"];
+const RECOMB_NEXT = { COMMON:"UNCOMMON", UNCOMMON:"RARE", RARE:"EPIC", EPIC:"LEGENDARY",
+                      LEGENDARY:"MYTHIC", MYTHIC:"SUPREME" };
+
+// Rang au sein d'une ligne d'accessoires : seul le plus haut tier possédé compte.
+const SUFFIX_RANK = { Talisman:0, Ring:1, Artifact:2, Relic:3 };
+
+// Raretés manquantes dans l'API Hypixel (38 accessoires, surtout les anciens talismans).
+// Sans override ils tomberaient sur COMMON par défaut ; on l'explicite pour les cas sûrs.
+const TIER_FIX = {
+  ZOMBIE_TALISMAN:"COMMON", SKELETON_TALISMAN:"COMMON", SPEED_TALISMAN:"COMMON",
+  POTATO_TALISMAN:"COMMON", FEATHER_TALISMAN:"COMMON", COIN_TALISMAN:"COMMON",
+  POWER_TALISMAN:"COMMON", FIRE_TALISMAN:"COMMON", COMPASS_TALISMAN:"COMMON",
+  VILLAGE_TALISMAN:"COMMON", MINE_TALISMAN:"COMMON", SCAVENGER_TALISMAN:"COMMON",
+  HEALING_TALISMAN:"COMMON", POTION_AFFINITY_TALISMAN:"COMMON", INTIMIDATION_TALISMAN:"COMMON",
+  BAT_PERSON_TALISMAN:"COMMON", KING_TALISMAN:"COMMON", VACCINE_TALISMAN:"COMMON",
+  SEA_CREATURE_TALISMAN:"COMMON", NIGHT_VISION_CHARM:"COMMON", RAGGEDY_SHARK_TOOTH_NECKLACE:"COMMON",
+  BEASTMASTER_CREST_COMMON:"COMMON", MASTER_SKULL_TIER_1:"COMMON", MASTER_SKULL_TIER_2:"COMMON",
+  CAMPFIRE_TALISMAN_1:"COMMON", CAMPFIRE_TALISMAN_2:"COMMON", CAMPFIRE_TALISMAN_3:"COMMON",
+  SOUL_CAMPFIRE_TALISMAN_1:"COMMON", SOUL_CAMPFIRE_TALISMAN_2:"COMMON", SOUL_CAMPFIRE_TALISMAN_3:"COMMON",
+  WEDDING_RING_0:"COMMON", WEDDING_RING_1:"COMMON",
+  DANTE_TALISMAN:"COMMON", DANTE_RING:"UNCOMMON",
+  BLOOD_GOD_CREST:"COMMON", HANDY_BLOOD_CHALICE:"COMMON", POCKET_ESPRESSO_MACHINE:"COMMON",
+  RUNEBOOK:"COMMON"
+};
+
+// Lignes que la règle « préfixe + suffixe » ne peut pas déduire (séries numérotées).
+// Chaque entrée : id -> [clé de ligne, rang].
+const FAMILY_FIX = (() => {
+  const m = {};
+  const seq = (prefix, key, nums) => nums.forEach((n,i) => { m[prefix+n] = [key, i]; });
+  seq("MASTER_SKULL_TIER_", "MASTER_SKULL", [1,2,3,4,5,6,7,8,9,10]);
+  seq("PERSONAL_COMPACTOR_", "PERSONAL_COMPACTOR", [4000,5000,6000,7000]);
+  seq("PERSONAL_DELETOR_",  "PERSONAL_DELETOR",  [4000,5000,6000,7000]);
+  seq("WEDDING_RING_", "WEDDING_RING", [0,1,2,3,4,5,6,7,8,9]);
+  seq("CRUX_TALISMAN_", "CRUX", [1,2,3,4,5,6,7]);
+  const campfire = Array.from({length:29},(_,i)=>i+1);
+  seq("CAMPFIRE_TALISMAN_", "CAMPFIRE", campfire);
+  seq("SOUL_CAMPFIRE_TALISMAN_", "SOUL_CAMPFIRE", campfire);
+  ["COMMON","UNCOMMON","RARE","EPIC","LEGENDARY"].forEach((t,i) => {
+    m["BEASTMASTER_CREST_"+t] = ["BEASTMASTER_CREST", i];
+  });
+  // Collier de dents de requin : ligne à préfixes variables.
+  ["RAGGEDY","DULL","HONED","SHARP","RAZOR_SHARP"].forEach((p,i) => {
+    m[p+"_SHARK_TOOTH_NECKLACE"] = ["SHARK_TOOTH_NECKLACE", i];
+  });
+  return m;
+})();
+
+const HEGEMONY = "HEGEMONY_ARTIFACT";
+const RIFT_PRISM_MP = 11;
+
+/* ══════════════════════════════════════════════════════════════════
+   2. TRADUCTIONS
+   ══════════════════════════════════════════════════════════════════ */
+
+const I18N = {
+  fr: {
+    tagline:"Entrez un pseudo Minecraft : l'app lit votre sac à accessoires et classe ce qu'il vous manque par coût réel de la Magical Power. Aucune clé API, aucune inscription.",
+    lblUser:"Pseudo Minecraft", lblBudget:"Budget (optionnel)", lblProfile:"Profil",
+    btnSearch:"Rechercher", btnSearching:"Recherche…",
+    stResolve:"Résolution du pseudo…", stProfiles:"Récupération des profils…",
+    stProfile:"Lecture du profil SkyBlock…", stItems:"Chargement du catalogue d'accessoires…",
+    stBag:"Décodage du sac à accessoires…", stBazaar:"Chargement des prix du bazaar…",
+    stPrices:"Récupération des prix de l'hôtel des ventes…",
+    mpNow:"MP actuelle", mpAfter:"MP après achats", multNow:"Multiplicateur actuel",
+    multAfter:"Multiplicateur après", slots:"Accessoires portés", cost:"Coût total",
+    gain:"soit +{x} % de stats", selected:"{n} accessoire(s) sélectionné(s)",
+    bagCap:"Capacité du sac non exposée par l'API",
+    thName:"Accessoire", thTier:"Rareté", thMp:"MP gagnée", thPrice:"Prix",
+    thRatio:"Coins / MP", thSlot:"Prend un slot", thHow:"Comment l'obtenir",
+    yes:"Oui", no:"Non", noPrice:"Aucune vente",
+    secBuy:"À acheter", secSoul:"À obtenir en jeu",
+    secBuyD:"Triable en cliquant sur les en-têtes de colonne.",
+    secSoulD:"Non échangeables : exclus du classement par ratio.",
+    upgrade:"Amélioration", dungeon:"Donjon ×2", noSlot:"Sans slot",
+    budgetPick:"Sélection dans le budget",
+    budgetNone:"Aucun accessoire n'entre dans ce budget.",
+    needSlotsMsg:"{n} de ces achats occuperont un nouveau slot du sac. Les autres sont des améliorations : ils remplacent un accessoire déjà porté et ne consomment rien.",
+    errNotFound:"Pseudo introuvable. Vérifiez l'orthographe — c'est le pseudo Minecraft, pas le pseudo Discord.",
+    errNoProfiles:"Aucun profil SkyBlock trouvé pour ce joueur. A-t-il déjà joué à SkyBlock ?",
+    errApiOff:"<b>Les paramètres d'API de ce joueur sont désactivés.</b> Le sac à accessoires n'est pas lisible.<ul><li>Dans SkyBlock : <b>Menu SkyBlock → Paramètres → API Settings</b></li><li>Activez <b>Inventory</b> (et idéalement <b>Personal Data</b>)</li><li>Rejoignez un lobby SkyBlock, puis relancez la recherche</li></ul>",
+    errDown:"Service momentanément indisponible ({who}). Réessayez dans une minute.",
+    errNet:"Impossible de joindre {who}. Vérifiez votre connexion, ou une extension bloque peut-être la requête.",
+    errGzip:"Votre navigateur ne gère pas la décompression gzip native. Utilisez une version récente de Chrome, Edge, Firefox ou Safari.",
+    errGeneric:"Une erreur inattendue est survenue :",
+    nothingMissing:"Bravo, il ne vous manque aucun accessoire achetable. Il ne reste que les objets à obtenir en jeu.",
+    pricesPartial:"{n} accessoire(s) sans prix : aucune vente active à l'hôtel des ventes.",
+    helpTitle:"Comment lire ce tableau",
+    footNote:"Projet non officiel, sans affiliation avec Hypixel Inc. ou Mojang.",
+    footSrc:"Données : Hypixel API · Coflnet · PlayerDB",
+    howAh:"Hôtel des ventes", howBz:"Bazaar",
+    obtSoul:"Soulbound — non échangeable", obtNoAuc:"Non vendable à l'hôtel des ventes",
+    obtRift:"Le Rift", obtDungeon:"Donjons", obtUnknown:"En jeu uniquement",
+    prismDone:"Rift Prism déjà imbué (+11 MP, sans slot)",
+    prismTodo:"Rift Prism non imbué : +11 MP gratuites, sans slot",
+    prismDesc:"Récupérez le Rift Prism dans le Rift et faites-le imbuer par <b>Erihann</b>. Il ne prend aucun slot, ne peut pas être recombobulé, et devient invendable une fois imbué.",
+    abicase:"Abicase : {n} contacts → {mp} MP"
+  },
+  en: {
+    tagline:"Enter a Minecraft username: the app reads your accessory bag and ranks what you're missing by the real cost of Magical Power. No API key, no signup.",
+    lblUser:"Minecraft username", lblBudget:"Budget (optional)", lblProfile:"Profile",
+    btnSearch:"Search", btnSearching:"Searching…",
+    stResolve:"Resolving username…", stProfiles:"Fetching profiles…",
+    stProfile:"Reading SkyBlock profile…", stItems:"Loading accessory catalogue…",
+    stBag:"Decoding accessory bag…", stBazaar:"Loading bazaar prices…",
+    stPrices:"Fetching auction house prices…",
+    mpNow:"Current MP", mpAfter:"MP after buys", multNow:"Current multiplier",
+    multAfter:"Multiplier after", slots:"Accessories worn", cost:"Total cost",
+    gain:"i.e. +{x}% stats", selected:"{n} accessory(ies) selected",
+    bagCap:"Bag capacity not exposed by the API",
+    thName:"Accessory", thTier:"Rarity", thMp:"MP gained", thPrice:"Price",
+    thRatio:"Coins / MP", thSlot:"Takes a slot", thHow:"How to get it",
+    yes:"Yes", no:"No", noPrice:"No listing",
+    secBuy:"To buy", secSoul:"Obtain in game",
+    secBuyD:"Sortable by clicking the column headers.",
+    secSoulD:"Not tradeable: excluded from the ratio ranking.",
+    upgrade:"Upgrade", dungeon:"Dungeon ×2", noSlot:"No slot",
+    budgetPick:"Selection within budget",
+    budgetNone:"No accessory fits in this budget.",
+    needSlotsMsg:"{n} of these buys will take a new bag slot. The rest are upgrades: they replace an accessory already worn and consume nothing.",
+    errNotFound:"Username not found. Check the spelling — this is the Minecraft name, not a Discord name.",
+    errNoProfiles:"No SkyBlock profile found for this player. Have they played SkyBlock yet?",
+    errApiOff:"<b>This player's API settings are disabled.</b> The accessory bag cannot be read.<ul><li>In SkyBlock: <b>SkyBlock Menu → Settings → API Settings</b></li><li>Enable <b>Inventory</b> (and ideally <b>Personal Data</b>)</li><li>Rejoin a SkyBlock lobby, then search again</li></ul>",
+    errDown:"Service temporarily unavailable ({who}). Try again in a minute.",
+    errNet:"Could not reach {who}. Check your connection, or an extension may be blocking the request.",
+    errGzip:"Your browser lacks native gzip decompression. Use a recent Chrome, Edge, Firefox or Safari.",
+    errGeneric:"An unexpected error occurred:",
+    nothingMissing:"Nice — you're not missing any purchasable accessory. Only in-game items remain.",
+    pricesPartial:"{n} accessory(ies) without a price: no active auction listing.",
+    helpTitle:"How to read this table",
+    footNote:"Unofficial project, not affiliated with Hypixel Inc. or Mojang.",
+    footSrc:"Data: Hypixel API · Coflnet · PlayerDB",
+    howAh:"Auction house", howBz:"Bazaar",
+    obtSoul:"Soulbound — not tradeable", obtNoAuc:"Cannot be auctioned",
+    obtRift:"The Rift", obtDungeon:"Dungeons", obtUnknown:"In game only",
+    prismDone:"Rift Prism already imbued (+11 MP, no slot)",
+    prismTodo:"Rift Prism not imbued: +11 free MP, no slot",
+    prismDesc:"Grab the Rift Prism in the Rift and have <b>Erihann</b> imbue it. It takes no slot, cannot be recombobulated, and becomes unsellable once imbued.",
+    abicase:"Abicase: {n} contacts → {mp} MP"
+  }
+};
+
+const HELP = {
+  fr:`<p><b>Coins / MP</b> est la colonne qui compte : c'est le prix réellement payé pour
+      un point de Magical Power. Le tri par défaut la place en premier, du moins cher au plus cher.</p>
+   <p><b>MP gagnée</b> n'est pas la MP de l'accessoire, c'est le <i>gain net</i>. Seul le tier
+      le plus haut d'une ligne compte (Talisman → Ring → Artifact → Relic). Si vous possédez déjà
+      le Bat Talisman (3 MP) et achetez le Bat Ring (5 MP), le gain est de 2, pas de 5.</p>
+   <p><b>Prend un slot</b> : les achats marqués <span class="badge b-up">Amélioration</span>
+      remplacent un accessoire déjà présent dans le sac et ne consomment aucun slot supplémentaire.
+      Quand votre sac est plein, ce sont les seuls achats encore possibles sans payer d'extension.</p>
+   <p><b>Donjon ×2</b> : la MP de ces accessoires est doublée à l'intérieur des donjons uniquement.
+      Le tableau affiche la valeur hors donjon, la valeur doublée est indiquée entre parenthèses.</p>
+   <p><b>Le Recombobulator 3000 n'est jamais proposé.</b> Il monte un accessoire d'un cran de rareté,
+      donc de 3 à 6 MP selon le palier, pour un prix qui dépasse systématiquement celui d'un
+      accessoire neuf offrant le même gain. C'est toujours le pire coût par MP : achetez d'abord
+      tout ce qui est dans ce tableau.</p>
+   <p><b>Le multiplicateur de stats</b> suit la formule officielle
+      <code>29.97 × ln(0.0019 × MP + 1)^1.2</code>. Elle est logarithmique : les premières centaines
+      de MP rapportent énormément, les suivantes de moins en moins. Le pourcentage affiché dans
+      l'encadré vous dit à partir de quand vos coins seraient mieux investis ailleurs.</p>`,
+  en:`<p><b>Coins / MP</b> is the column that matters: the price actually paid for one point of
+      Magical Power. The default sort puts it first, cheapest to most expensive.</p>
+   <p><b>MP gained</b> is not the accessory's MP, it's the <i>net gain</i>. Only the highest tier
+      in a line counts (Talisman → Ring → Artifact → Relic). If you already own the Bat Talisman
+      (3 MP) and buy the Bat Ring (5 MP), the gain is 2, not 5.</p>
+   <p><b>Takes a slot</b>: purchases tagged <span class="badge b-up">Upgrade</span> replace an
+      accessory already in the bag and consume no extra slot. When your bag is full, those are the
+      only buys still possible without paying for an expansion.</p>
+   <p><b>Dungeon ×2</b>: these accessories have doubled MP inside dungeons only. The table shows the
+      overworld value, with the doubled value in parentheses.</p>
+   <p><b>The Recombobulator 3000 is never suggested.</b> It raises one accessory by a single rarity
+      step, so 3 to 6 MP depending on the tier, at a price that always exceeds a fresh accessory
+      giving the same gain. It is systematically the worst cost per MP: buy everything in this
+      table first.</p>
+   <p><b>The stat multiplier</b> follows the official formula
+      <code>29.97 × ln(0.0019 × MP + 1)^1.2</code>. It is logarithmic: the first few hundred MP pay
+      off enormously, later ones less and less. The percentage in the summary box tells you when
+      your coins would be better spent elsewhere.</p>`
+};
+
+let LANG = localStorage.getItem("mpopt.lang") || "fr";
+const T = (k, vars) => {
+  let s = (I18N[LANG] && I18N[LANG][k]) || I18N.fr[k] || k;
+  if (vars) for (const v in vars) s = s.replace("{"+v+"}", vars[v]);
+  return s;
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   3. UTILITAIRES
+   ══════════════════════════════════════════════════════════════════ */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// Les noms d'items Hypixel contiennent des codes couleur Minecraft (§a, §6…).
+const cleanName = n => String(n || "").replace(/§./g, "").replace(/�./g, "").trim();
+
+function fmtCoins(n) {
+  if (n == null || !isFinite(n)) return "—";
+  const loc = LANG === "fr" ? "fr-FR" : "en-US";
+  if (n >= 1e9) return (n/1e9).toLocaleString(loc,{maximumFractionDigits:2}) + "b";
+  if (n >= 1e6) return (n/1e6).toLocaleString(loc,{maximumFractionDigits:2}) + "m";
+  if (n >= 1e3) return (n/1e3).toLocaleString(loc,{maximumFractionDigits:1}) + "k";
+  return Math.round(n).toLocaleString(loc);
+}
+const fmtNum = n => (n == null || !isFinite(n)) ? "—"
+  : Math.round(n).toLocaleString(LANG === "fr" ? "fr-FR" : "en-US");
+
+// Accepte "50m", "1.2b", "250 000 000", "250,000,000".
+function parseBudget(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().toLowerCase().replace(/[\s,  ]/g, "");
+  const m = s.match(/^([0-9]*\.?[0-9]+)\s*([kmb])?$/);
+  if (!m) return null;
+  const mult = { k:1e3, m:1e6, b:1e9 }[m[2]] || 1;
+  const v = parseFloat(m[1]) * mult;
+  return isFinite(v) && v > 0 ? v : null;
+}
+
+// Formule officielle du multiplicateur de stats.
+const statMult = mp => mp <= 0 ? 0 : 29.97 * Math.pow(Math.log(0.0019 * mp + 1), 1.2);
+
+/* --- cache localStorage, tolérant au quota dépassé --- */
+const cache = {
+  get(key, ttlMs) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const o = JSON.parse(raw);
+      if (!o || typeof o.ts !== "number") return null;
+      if (Date.now() - o.ts > ttlMs) return null;
+      return o.data;
+    } catch { return null; }
+  },
+  set(key, data) {
+    try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); }
+    catch { /* quota plein : on continue sans cache */ }
+  }
+};
+
+async function getJSON(url, who) {
+  let res;
+  try {
+    res = await fetch(url, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new AppError(T("errNet", { who }));
+  }
+  if (res.status === 404) { const e = new AppError("404"); e.notFound = true; throw e; }
+  if (!res.ok) { const e = new AppError(T("errDown", { who })); e.status = res.status; throw e; }
+  return res.json();
+}
+
+class AppError extends Error {
+  constructor(msg, html) { super(msg); this.html = html; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   4. NBT — le sac est du NBT gzippé encodé en base64
+   ══════════════════════════════════════════════════════════════════ */
+
+function b64ToBytes(s) {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function gunzip(bytes) {
+  if (typeof DecompressionStream === "undefined") throw new AppError(T("errGzip"));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// Lecteur NBT Java (big-endian). Suffisant pour les inventaires SkyBlock.
+function parseNBT(buf) {
+  const dv = new DataView(buf);
+  const dec = new TextDecoder("utf-8");
+  let p = 0;
+
+  const u8  = () => dv.getUint8(p++);
+  const i32 = () => { const v = dv.getInt32(p); p += 4; return v; };
+  const str = () => {
+    const len = dv.getUint16(p); p += 2;
+    const s = dec.decode(new Uint8Array(buf, p, len)); p += len; return s;
+  };
+
+  function payload(type) {
+    switch (type) {
+      case 1: return dv.getInt8(p++);
+      case 2: { const v = dv.getInt16(p); p += 2; return v; }
+      case 3: return i32();
+      case 4: { const v = dv.getBigInt64(p); p += 8; return v; }
+      case 5: { const v = dv.getFloat32(p); p += 4; return v; }
+      case 6: { const v = dv.getFloat64(p); p += 8; return v; }
+      case 7: { const n = i32(); p += n; return null; }
+      case 8: return str();
+      case 9: {
+        const t = u8(), n = i32(), arr = [];
+        for (let i = 0; i < n; i++) arr.push(payload(t));
+        return arr;
+      }
+      case 10: {
+        const o = {};
+        for (;;) { const t = u8(); if (t === 0) break; o[str()] = payload(t); }
+        return o;
+      }
+      case 11: { const n = i32(); p += n * 4; return null; }
+      case 12: { const n = i32(); p += n * 8; return null; }
+      default: throw new Error("NBT tag " + type);
+    }
+  }
+
+  if (u8() !== 10) throw new Error("bad NBT root");
+  str();
+  return payload(10);
+}
+
+// Renvoie [{ id, recombs }] pour chaque emplacement occupé du sac.
+async function readBag(b64) {
+  const nbt = parseNBT((await gunzip(b64ToBytes(b64))).buffer);
+  const slots = nbt.i || [];
+  const out = [];
+  for (const slot of slots) {
+    const ea = slot && slot.tag && slot.tag.ExtraAttributes;
+    if (ea && ea.id) out.push({ id: ea.id, recombs: Number(ea.rarity_upgrades || 0) });
+  }
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   5. SOURCES DE DONNÉES
+   ══════════════════════════════════════════════════════════════════ */
+
+// api.mojang.com n'envoie aucun en-tête CORS : on passe par des miroirs qui, eux, en envoient.
+async function resolveUUID(name) {
+  const tries = [
+    ["https://playerdb.co/api/player/minecraft/" + encodeURIComponent(name),
+     d => d && d.data && d.data.player && d.data.player.raw_id],
+    ["https://api.minetools.eu/uuid/" + encodeURIComponent(name),
+     d => d && d.id && d.id !== "null" ? d.id : null],
+    ["https://api.ashcon.app/mojang/v2/user/" + encodeURIComponent(name),
+     d => d && d.uuid ? d.uuid.replace(/-/g, "") : null]
+  ];
+  let sawNotFound = false;
+  for (const [url, pick] of tries) {
+    try {
+      const uuid = pick(await getJSON(url, "PlayerDB"));
+      if (uuid) return uuid.replace(/-/g, "");
+      sawNotFound = true;
+    } catch (e) {
+      if (e.notFound) sawNotFound = true;
+    }
+  }
+  throw new AppError(sawNotFound ? T("errNotFound") : T("errDown", { who: "PlayerDB" }));
+}
+
+const listProfiles = uuid =>
+  getJSON("https://sky.coflnet.com/api/profile/" + uuid, "Coflnet");
+
+const fetchProfile = (uuid, pid) =>
+  getJSON("https://sky.coflnet.com/api/profile/" + uuid + "/" + pid, "Coflnet");
+
+// Profil actuellement sélectionné en jeu. Best-effort : jamais bloquant.
+async function selectedProfileId(uuid) {
+  try {
+    const d = await getJSON("https://soopy.dev/api/v2/player_skyblock/" + uuid, "Soopy");
+    const s = d && d.data && d.data.stats;
+    return (s && (s.currentProfileId || s.bestProfileId)) || null;
+  } catch { return null; }
+}
+
+async function fetchAccessories() {
+  const hit = cache.get("mpopt.items.v2", 24 * 3600e3);
+  if (hit) return hit;
+  const d = await getJSON("https://api.hypixel.net/v2/resources/skyblock/items", "Hypixel");
+  // On ne garde que les accessoires et les champs utiles : la réponse brute fait 5 Mo,
+  // bien au-delà du quota localStorage.
+  const list = (d.items || [])
+    .filter(i => i.category === "ACCESSORY")
+    .map(i => ({
+      id: i.id, name: cleanName(i.name), tier: i.tier || null,
+      soulbound: i.soulbound || null,
+      canAuction: i.can_auction !== false, canTrade: i.can_trade !== false,
+      dungeon: !!i.dungeon_item, rift: i.origin === "RIFT",
+      museum: !!i.museum
+    }));
+  cache.set("mpopt.items.v2", list);
+  return list;
+}
+
+async function fetchBazaar() {
+  const hit = cache.get("mpopt.bazaar.v1", 10 * 60e3);
+  if (hit) return hit;
+  const d = await getJSON("https://api.hypixel.net/v2/skyblock/bazaar", "Hypixel");
+  const out = {};
+  for (const id in (d.products || {})) {
+    const q = d.products[id].quick_status;
+    if (q && q.buyPrice > 0) out[id] = q.buyPrice; // achat instantané
+  }
+  cache.set("mpopt.bazaar.v1", out);
+  return out;
+}
+
+/* --- lowest BIN : Coflnet, un appel par item, avec cache TTL 10 min --- */
+const BIN_KEY = "mpopt.bin.v1";
+const BIN_TTL = 10 * 60e3;
+
+function loadBinCache() {
+  try {
+    const o = JSON.parse(localStorage.getItem(BIN_KEY) || "{}");
+    const now = Date.now(), out = {};
+    for (const k in o) if (now - o[k].t < BIN_TTL) out[k] = o[k];
+    return out;
+  } catch { return {}; }
+}
+function saveBinCache(c) {
+  try { localStorage.setItem(BIN_KEY, JSON.stringify(c)); } catch {}
+}
+
+// Récupère les prix avec un pool de requêtes concurrentes, en signalant chaque
+// arrivée pour un affichage progressif.
+async function fetchBins(tags, onEach, onProgress) {
+  const c = loadBinCache();
+  const todo = [];
+  for (const tag of tags) {
+    if (c[tag]) onEach(tag, c[tag].v);
+    else todo.push(tag);
+  }
+  let done = 0, i = 0;
+  const total = todo.length;
+  onProgress(0, total);
+
+  async function worker() {
+    while (i < todo.length) {
+      const tag = todo[i++];
+      let price = null;
+      try {
+        const r = await fetch("https://sky.coflnet.com/api/item/price/" + tag + "/bin");
+        if (r.ok) {
+          const d = await r.json();
+          if (d && d.lowest > 0) price = d.lowest;
+        }
+        // 400 = l'item n'existe pas à l'hôtel des ventes : prix null, cas normal.
+      } catch { /* réseau : on laisse null, l'item s'affichera « aucune vente » */ }
+      c[tag] = { v: price, t: Date.now() };
+      onEach(tag, price);
+      onProgress(++done, total);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(8, todo.length) }, worker));
+  saveBinCache(c);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   6. LOGIQUE MÉTIER
+   ══════════════════════════════════════════════════════════════════ */
+
+const tierOf = it => TIER_FIX[it.id] || it.tier || "COMMON";
+const baseMP = it => MP_BY_TIER[tierOf(it)] ?? 3;
+
+// MP réelle d'un accessoire, cas particuliers inclus.
+function mpOf(it, ctx) {
+  if (it.id === HEGEMONY) return baseMP(it) * 2;            // Hegemony : MP doublée
+  if (it.id === "ABICASE") return Math.floor((ctx.contacts || 0) / 2); // +1 MP / 2 contacts
+  return baseMP(it);
+}
+
+// Clé de ligne + rang. Retourne null si l'accessoire est isolé.
+function familyOf(it) {
+  const fix = FAMILY_FIX[it.id];
+  if (fix) return { key: fix[0], rank: fix[1] };
+  const m = it.name.match(/^(.*?)\s+(Talisman|Ring|Artifact|Relic)$/);
+  if (m) return { key: "N:" + m[1].toUpperCase(), rank: SUFFIX_RANK[m[2]] };
+  return null;
+}
+
+function isTradeable(it) {
+  return !it.soulbound && it.canAuction && it.canTrade;
+}
+
+function howToGet(it) {
+  if (it.soulbound) return T("obtSoul");
+  if (!it.canAuction || !it.canTrade) return T("obtNoAuc");
+  if (it.rift) return T("obtRift");
+  if (it.dungeon) return T("obtDungeon");
+  return T("obtUnknown");
+}
+
+/**
+ * Construit le modèle complet à partir du catalogue et du profil.
+ * Retourne { currentMP, slots, rows, locked, notes }.
+ */
+function buildModel(items, profile) {
+  const bagRaw   = profile.bag || [];
+  const contacts = profile.contacts || 0;
+  const ctx = { contacts };
+
+  const byId = new Map(items.map(i => [i.id, i]));
+
+  // --- MP actuelle : pour chaque ligne, seul le meilleur tier possédé compte ---
+  const ownedIds   = new Set();
+  const bestInFam  = new Map(); // clé de ligne -> { rank, mp }
+  let soloMP = 0;               // accessoires hors ligne
+  const seenSolo = new Set();
+
+  for (const entry of bagRaw) {
+    const it = byId.get(entry.id);
+    if (!it) continue;
+    ownedIds.add(it.id);
+
+    // Un accessoire recombobulé monte d'un cran : sa MP réelle suit sa rareté effective.
+    let mp = mpOf(it, ctx);
+    if (entry.recombs > 0 && it.id !== "ABICASE") {
+      const up = RECOMB_NEXT[tierOf(it)];
+      if (up) mp = (MP_BY_TIER[up] ?? mp) * (it.id === HEGEMONY ? 2 : 1);
+    }
+
+    const fam = familyOf(it);
+    if (fam) {
+      const cur = bestInFam.get(fam.key);
+      if (!cur || fam.rank > cur.rank) bestInFam.set(fam.key, { rank: fam.rank, mp });
+    } else if (!seenSolo.has(it.id)) {
+      seenSolo.add(it.id);
+      soloMP += mp;
+    }
+  }
+
+  let currentMP = soloMP;
+  for (const v of bestInFam.values()) currentMP += v.mp;
+
+  const notes = [];
+  if (profile.hasPrism) { currentMP += RIFT_PRISM_MP; notes.push({ ok:true,  text:T("prismDone") }); }
+  else                  { notes.push({ ok:false, text:T("prismTodo"), desc:T("prismDesc") }); }
+  if (contacts > 0 && ownedIds.has("ABICASE"))
+    notes.push({ ok:true, text:T("abicase", { n:contacts, mp:Math.floor(contacts/2) }) });
+
+  // --- Candidats : ce qu'il manque, avec le gain net ---
+  const rows = [], locked = [];
+
+  for (const it of items) {
+    if (ownedIds.has(it.id)) continue;
+    if (it.id === "ABICASE" && contacts === 0) continue; // sans Abiphone, gain nul
+
+    const fam  = familyOf(it);
+    const best = fam ? bestInFam.get(fam.key) : null;
+
+    // Un tier inférieur à ce qu'on possède déjà n'apporte rien.
+    if (fam && best && fam.rank <= best.rank) continue;
+
+    const full = mpOf(it, ctx);
+    const gain = best ? full - best.mp : full;
+    if (gain <= 0) continue;
+
+    const row = {
+      id: it.id, name: it.name, tier: tierOf(it),
+      mp: gain, mpFull: full, dungeon: it.dungeon,
+      takesSlot: !best,             // remplacer un tier inférieur ne consomme pas de slot
+      isUpgrade: !!best,
+      price: undefined,             // undefined = en cours, null = aucune vente
+      source: null, ratio: Infinity
+    };
+
+    if (isTradeable(it)) rows.push(row);
+    else { row.how = howToGet(it); locked.push(row); }
+  }
+
+  // Hypixel n'expose pas la capacité du sac : `bag_upgrades_purchased` ne correspond pas
+  // au nombre de slots (observé à 99 pour un sac contenant 113 accessoires), et la longueur
+  // de la liste NBT est un tampon d'allocation. On affiche donc le nombre porté, pas les
+  // slots libres, plutôt que d'inventer un chiffre.
+  return { currentMP, rows, locked, notes, worn: ownedIds.size };
+}
+
+// Glouton par ratio : on prend le meilleur coût/MP tant que le budget le permet.
+function greedy(rows, budget) {
+  if (!budget) return { ids:new Set(), cost:0, mp:0, needSlots:0 };
+  const sorted = rows
+    .filter(r => r.price > 0 && r.mp > 0)
+    .slice()
+    .sort((a, b) => a.ratio - b.ratio);
+
+  const ids = new Set();
+  let left = budget, cost = 0, mp = 0, needSlots = 0;
+  for (const r of sorted) {
+    if (r.price <= left) {
+      ids.add(r.id); left -= r.price; cost += r.price; mp += r.mp;
+      if (r.takesSlot) needSlots++;
+    }
+  }
+  return { ids, cost, mp, needSlots };
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   7. RENDU
+   ══════════════════════════════════════════════════════════════════ */
+
+const state = {
+  model: null, budget: null,
+  sortKey: "ratio", sortDir: 1,
+  pick: { ids:new Set(), cost:0, mp:0, needSlots:0 }
+};
+
+function setStatus(html) { $("#status").innerHTML = html || ""; }
+
+function showLoader(label, cur, total) {
+  const pct = total ? Math.round(cur / total * 100) : 0;
+  setStatus(
+    `<div class="card"><div class="loader"><div class="spin"></div><div>${esc(label)}` +
+    (total ? ` <span style="color:var(--dim)">${cur}/${total}</span>` : "") + `</div></div>` +
+    (total ? `<div class="bar"><i style="width:${pct}%"></i></div>` : "") + `</div>`
+  );
+}
+
+function showError(e) {
+  const html = e && e.html ? e.html
+    : `${esc(e && e.message ? e.message : String(e))}`;
+  setStatus(`<div class="msg msg-err">${html}</div>`);
+}
+
+function tierColor(t) {
+  const map = {
+    COMMON:"--r-common", UNCOMMON:"--r-uncommon", RARE:"--r-rare", EPIC:"--r-epic",
+    LEGENDARY:"--r-legendary", MYTHIC:"--r-mythic", SUPREME:"--r-supreme",
+    SPECIAL:"--r-special", VERY_SPECIAL:"--r-special"
+  };
+  return `var(${map[t] || "--r-common"})`;
+}
+const tierLabel = t => t.replace("_", " ");
+
+function renderSummary() {
+  const m = state.model;
+  if (!m) { $("#summary").innerHTML = ""; return; }
+
+  const after   = m.currentMP + state.pick.mp;
+  const mNow    = statMult(m.currentMP);
+  const mAfter  = statMult(after);
+  const pct     = mNow > 0 ? (mAfter / mNow - 1) * 100 : 0;
+  const hasPick = state.pick.ids.size > 0;
+
+  let html = `<div class="card"><div class="grid">
+    <div class="stat"><div class="k">${T("mpNow")}</div><div class="v">${fmtNum(m.currentMP)}</div></div>
+    <div class="stat"><div class="k">${T("multNow")}</div><div class="v">×${mNow.toFixed(2)}</div></div>`;
+
+  if (hasPick) {
+    html += `
+    <div class="stat"><div class="k">${T("mpAfter")}</div>
+      <div class="v up">${fmtNum(after)}</div>
+      <div class="d up">+${fmtNum(state.pick.mp)} MP</div></div>
+    <div class="stat"><div class="k">${T("multAfter")}</div>
+      <div class="v up">×${mAfter.toFixed(2)}</div>
+      <div class="d up">${T("gain",{x:pct.toFixed(2)})}</div></div>
+    <div class="stat"><div class="k">${T("cost")}</div>
+      <div class="v">${fmtCoins(state.pick.cost)}</div>
+      <div class="d">${T("selected",{n:state.pick.ids.size})}</div></div>`;
+  }
+
+  html += `<div class="stat"><div class="k">${T("slots")}</div>
+      <div class="v">${fmtNum(m.worn)}</div>
+      <div class="d">${T("bagCap")}</div></div>
+  </div>`;
+
+  if (hasPick && state.pick.needSlots > 0) {
+    html += `<div class="msg msg-info" style="margin:14px 0 0">
+      ${T("needSlotsMsg",{n:state.pick.needSlots})}</div>`;
+  }
+
+  for (const n of m.notes) {
+    html += `<div class="msg ${n.ok ? "msg-info" : "msg-warn"}" style="margin:14px 0 0">
+      <b>${esc(n.text)}</b>${n.desc ? "<br>" + n.desc : ""}</div>`;
+  }
+
+  html += `</div>`;
+  $("#summary").innerHTML = html;
+}
+
+const COLS = [
+  { key:"name",  label:"thName"  },
+  { key:"tier",  label:"thTier"  },
+  { key:"mp",    label:"thMp",    num:true },
+  { key:"price", label:"thPrice", num:true },
+  { key:"ratio", label:"thRatio", num:true },
+  { key:"slot",  label:"thSlot"  }
+];
+
+function sortRows(rows) {
+  const k = state.sortKey, d = state.sortDir;
+  const val = r => {
+    switch (k) {
+      case "name":  return r.name.toLowerCase();
+      case "tier":  return TIER_ORDER.indexOf(r.tier);
+      case "mp":    return r.mp;
+      case "price": return r.price == null ? Infinity : r.price;
+      case "ratio": return r.ratio;
+      case "slot":  return r.takesSlot ? 1 : 0;
+    }
+  };
+  return rows.slice().sort((a, b) => {
+    const x = val(a), y = val(b);
+    if (x === y) return a.name.localeCompare(b.name);
+    if (typeof x === "string") return d * x.localeCompare(y);
+    return d * (x - y);
+  });
+}
+
+function rowHTML(r, picked) {
+  const mpCell = r.dungeon
+    ? `${fmtNum(r.mp)} <span class="badge b-dj">${T("dungeon")} ${fmtNum(r.mp*2)}</span>`
+    : fmtNum(r.mp);
+
+  const priceCell = r.price === undefined
+    ? `<span class="nop">…</span>`
+    : r.price == null
+      ? `<span class="nop">${T("noPrice")}</span>`
+      : `${fmtCoins(r.price)}<span class="src">${r.source === "bz" ? T("howBz") : T("howAh")}</span>`;
+
+  const ratioCell = (r.price > 0 && r.mp > 0) ? fmtCoins(r.ratio) : `<span class="nop">—</span>`;
+
+  return `<tr class="${picked ? "pick" : ""}">
+    <td><span class="name">${esc(r.name)}</span>${
+      r.isUpgrade ? `<span class="badge b-up">${T("upgrade")}</span>` : ""}</td>
+    <td style="color:${tierColor(r.tier)};font-weight:600">${esc(tierLabel(r.tier))}</td>
+    <td class="num">${mpCell}</td>
+    <td class="num">${priceCell}</td>
+    <td class="num">${ratioCell}</td>
+    <td class="${r.takesSlot ? "yes" : "no"}">${r.takesSlot ? T("yes") : T("no")}</td>
+  </tr>`;
+}
+
+function renderResults() {
+  const m = state.model;
+  if (!m) { $("#results").innerHTML = ""; return; }
+
+  const rows = sortRows(m.rows);
+  const noPrice = m.rows.filter(r => r.price === null).length;
+
+  let html = "";
+
+  if (!m.rows.length) {
+    html += `<div class="msg msg-info">${T("nothingMissing")}</div>`;
+  } else {
+    html += `<h2>${T("secBuy")}<span class="count">${m.rows.length}</span>` +
+            `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T("secBuyD")}</span></h2>`;
+
+    if (state.budget && !state.pick.ids.size)
+      html += `<div class="msg msg-warn">${T("budgetNone")}</div>`;
+
+    html += `<div class="tablewrap"><table><thead><tr>`;
+    for (const c of COLS) {
+      const active = state.sortKey === c.key;
+      html += `<th data-sort="${c.key}"${c.num ? ' style="text-align:right"' : ""}>${T(c.label)}` +
+              (active ? ` <span class="ar">${state.sortDir > 0 ? "▲" : "▼"}</span>` : "") + `</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+    for (const r of rows) html += rowHTML(r, state.pick.ids.has(r.id));
+    html += `</tbody></table></div>`;
+
+    if (noPrice)
+      html += `<div style="color:var(--dim);font-size:12.5px;margin-top:9px">${T("pricesPartial",{n:noPrice})}</div>`;
+  }
+
+  if (m.locked.length) {
+    html += `<h2>${T("secSoul")}<span class="count">${m.locked.length}</span>` +
+            `<span style="font-weight:400;color:var(--muted);font-size:12.5px">${T("secSoulD")}</span></h2>`;
+    html += `<div class="tablewrap"><table><thead><tr>
+      <th style="cursor:default">${T("thName")}</th>
+      <th style="cursor:default">${T("thTier")}</th>
+      <th style="cursor:default;text-align:right">${T("thMp")}</th>
+      <th style="cursor:default">${T("thHow")}</th>
+    </tr></thead><tbody>`;
+    const lk = m.locked.slice().sort((a,b) => b.mp - a.mp || a.name.localeCompare(b.name));
+    for (const r of lk) {
+      html += `<tr>
+        <td><span class="name">${esc(r.name)}</span>${
+          r.isUpgrade ? `<span class="badge b-up">${T("upgrade")}</span>` : ""}</td>
+        <td style="color:${tierColor(r.tier)};font-weight:600">${esc(tierLabel(r.tier))}</td>
+        <td class="num">${fmtNum(r.mp)}${r.dungeon ? ` <span class="badge b-dj">${T("dungeon")} ${fmtNum(r.mp*2)}</span>` : ""}</td>
+        <td style="color:var(--muted)">${esc(r.how)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+
+  $("#results").innerHTML = html;
+
+  $("#results").querySelectorAll("th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.sort;
+      if (state.sortKey === k) state.sortDir *= -1;
+      else { state.sortKey = k; state.sortDir = (k === "mp") ? -1 : 1; }
+      renderResults();
+    });
+  });
+}
+
+function recompute() {
+  if (!state.model) return;
+  for (const r of state.model.rows)
+    r.ratio = (r.price > 0 && r.mp > 0) ? r.price / r.mp : Infinity;
+  state.pick = greedy(state.model.rows, state.budget);
+  renderSummary();
+  renderResults();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   8. ORCHESTRATION
+   ══════════════════════════════════════════════════════════════════ */
+
+let currentRun = 0;
+
+async function run(username, forcedProfileId) {
+  const runId = ++currentRun;
+  const stale = () => runId !== currentRun;
+
+  const btn = $("#go");
+  btn.disabled = true;
+  btn.textContent = T("btnSearching");
+  $("#summary").innerHTML = "";
+  $("#results").innerHTML = "";
+
+  try {
+    showLoader(T("stResolve"));
+    const uuid = await resolveUUID(username);
+    if (stale()) return;
+    localStorage.setItem("mpopt.user", username);
+
+    showLoader(T("stProfiles"));
+    const [profMap, items] = await Promise.all([
+      listProfiles(uuid),
+      (showLoader(T("stItems")), fetchAccessories())
+    ]);
+    if (stale()) return;
+
+    const entries = Object.entries((profMap && profMap.profiles) || {});
+    if (!entries.length) throw new AppError(T("errNoProfiles"));
+
+    // Profil : choix explicite > profil sélectionné en jeu > premier de la liste.
+    let pid = forcedProfileId;
+    if (!pid) {
+      const sel = await selectedProfileId(uuid);
+      const norm = s => String(s || "").replace(/-/g, "");
+      const found = sel && entries.find(([, id]) => norm(id) === norm(sel));
+      pid = found ? found[1] : entries[0][1];
+    }
+    if (stale()) return;
+    renderProfileSelect(entries, pid, username);
+
+    showLoader(T("stProfile"));
+    const prof = await fetchProfile(uuid, pid);
+    if (stale()) return;
+
+    const b64 = prof && prof.inventory && prof.inventory.bag_contents &&
+                prof.inventory.bag_contents.talisman_bag &&
+                prof.inventory.bag_contents.talisman_bag.data;
+    if (!b64) throw new AppError("", `<div>${T("errApiOff")}</div>`);
+
+    showLoader(T("stBag"));
+    const bag = await readBag(b64);
+    if (stale()) return;
+
+    const abi = (prof.nether_island_player_data || {}).abiphone || {};
+    const model = buildModel(items, {
+      bag,
+      contacts: Array.isArray(abi.active_contacts) ? abi.active_contacts.length : 0,
+      hasPrism: !!(((prof.rift || {}).access) || {}).consumed_prism
+    });
+
+    state.model = model;
+
+    // Premier rendu immédiat : les prix arriveront ensuite.
+    showLoader(T("stBazaar"));
+    const bz = await fetchBazaar();
+    if (stale()) return;
+
+    const needBin = [];
+    for (const r of model.rows) {
+      if (bz[r.id] != null) { r.price = bz[r.id]; r.source = "bz"; }
+      else needBin.push(r.id);
+    }
+    recompute();
+
+    const byId = new Map(model.rows.map(r => [r.id, r]));
+    let pending = 0;
+    const flush = () => {
+      if (pending) return;
+      pending = requestAnimationFrame(() => { pending = 0; recompute(); });
+    };
+
+    await fetchBins(
+      needBin,
+      (tag, price) => {
+        const r = byId.get(tag);
+        if (!r) return;
+        r.price = price; r.source = "ah";
+        flush();
+      },
+      (done, total) => { if (total && !stale()) showLoader(T("stPrices"), done, total); }
+    );
+    if (stale()) return;
+
+    cancelAnimationFrame(pending);
+    setStatus("");
+    recompute();
+
+  } catch (e) {
+    if (stale()) return;
+    if (e instanceof AppError) showError(e);
+    else {
+      console.error(e);
+      setStatus(`<div class="msg msg-err">${T("errGeneric")} ${esc(e.message || e)}</div>`);
+    }
+  } finally {
+    if (!stale()) { btn.disabled = false; btn.textContent = T("btnSearch"); }
+  }
+}
+
+function renderProfileSelect(entries, current, username) {
+  const wrap = $("#profWrap"), sel = $("#prof");
+  sel.innerHTML = entries
+    .map(([name, id]) => `<option value="${esc(id)}"${id === current ? " selected" : ""}>${esc(name)}</option>`)
+    .join("");
+  wrap.classList.toggle("hidden", entries.length < 2);
+  sel.onchange = () => run(username, sel.value);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   9. AMORÇAGE
+   ══════════════════════════════════════════════════════════════════ */
+
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.innerHTML = T(el.dataset.i18n); });
+  $("#langBtn").textContent = LANG === "fr" ? "English" : "Français";
+  $("#helpBody").innerHTML = HELP[LANG];
+  if (!$("#go").disabled) $("#go").textContent = T("btnSearch");
+  if (state.model) { renderSummary(); renderResults(); }
+}
+
+$("#langBtn").addEventListener("click", () => {
+  LANG = LANG === "fr" ? "en" : "fr";
+  localStorage.setItem("mpopt.lang", LANG);
+  applyLang();
+});
+
+function submit() {
+  const name = $("#user").value.trim();
+  if (!name) { $("#user").focus(); return; }
+  state.budget = parseBudget($("#budget").value);
+  run(name, null);
+}
+
+$("#go").addEventListener("click", submit);
+$("#user").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+$("#budget").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+$("#budget").addEventListener("input", () => {
+  state.budget = parseBudget($("#budget").value);
+  if (state.model) recompute();
+});
+
+applyLang();
+const last = localStorage.getItem("mpopt.user");
+if (last) $("#user").value = last;
+</script>
+</body>
+</html>
