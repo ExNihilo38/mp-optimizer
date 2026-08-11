@@ -279,7 +279,8 @@ const I18N = {
     bagCap:"Capacité du sac non exposée par l'API",
     thName:"Accessoire", thTier:"Rareté", thMp:"MP gagnée", thPrice:"Prix",
     thRatio:"Coins / MP", thSlot:"Prend un slot", thHow:"Comment l'obtenir",
-    yes:"Oui", no:"Non", noPrice:"Aucune vente",
+    yes:"Oui", no:"Non", noPrice:"Aucune vente", priceFail:"Prix indisponible",
+    pricesFailed:"{n} prix n'ont pas pu être récupérés : l'API des enchères a limité le débit. Relancez la recherche dans une minute pour les compléter.",
     secSoul:"À obtenir en jeu",
     secSoulD:"Non échangeables : exclus du classement par ratio.",
     secNew:"Nouveaux accessoires",
@@ -326,7 +327,8 @@ const I18N = {
     bagCap:"Bag capacity not exposed by the API",
     thName:"Accessory", thTier:"Rarity", thMp:"MP gained", thPrice:"Price",
     thRatio:"Coins / MP", thSlot:"Takes a slot", thHow:"How to get it",
-    yes:"Yes", no:"No", noPrice:"No listing",
+    yes:"Yes", no:"No", noPrice:"No listing", priceFail:"Price unavailable",
+    pricesFailed:"{n} prices could not be fetched: the auction API rate-limited us. Search again in a minute to fill them in.",
     secSoul:"Obtain in game",
     secSoulD:"Not tradeable: excluded from the ratio ranking.",
     secNew:"New accessories",
@@ -654,13 +656,42 @@ function saveBinCache(c) {
   try { localStorage.setItem(BIN_KEY, JSON.stringify(c)); } catch {}
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Lowest BIN d'un objet. Distingue trois issues, ce qui est essentiel :
+ *  - prix trouvé ;
+ *  - 400/404, réponse définitive : l'objet n'existe pas à l'hôtel des ventes ;
+ *  - 429 ou 5xx, réponse non concluante : on retente, et en cas d'échec on renvoie
+ *    sure=false pour ne surtout pas conclure « invendu ».
+ */
+async function binPrice(tag) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    let r;
+    try {
+      r = await fetch("https://sky.coflnet.com/api/item/price/" + tag + "/bin");
+    } catch {
+      await sleep(400 * (attempt + 1));
+      continue;
+    }
+    if (r.ok) {
+      const d = await r.json().catch(() => null);
+      return { price: (d && d.lowest > 0) ? d.lowest : null, sure: true };
+    }
+    if (r.status === 400 || r.status === 404) return { price: null, sure: true };
+    const ra = parseInt(r.headers.get("retry-after") || "", 10);
+    await sleep(ra > 0 ? Math.min(ra, 5) * 1000 : 400 * Math.pow(2, attempt));
+  }
+  return { price: null, sure: false };
+}
+
 // Récupère les prix avec un pool de requêtes concurrentes, en signalant chaque
 // arrivée pour un affichage progressif.
 async function fetchBins(tags, onEach, onProgress) {
   const c = loadBinCache();
   const todo = [];
   for (const tag of tags) {
-    if (c[tag]) onEach(tag, c[tag].v);
+    if (c[tag]) onEach(tag, c[tag].v, true);
     else todo.push(tag);
   }
   let done = 0, i = 0;
@@ -670,21 +701,15 @@ async function fetchBins(tags, onEach, onProgress) {
   async function worker() {
     while (i < todo.length) {
       const tag = todo[i++];
-      let price = null;
-      try {
-        const r = await fetch("https://sky.coflnet.com/api/item/price/" + tag + "/bin");
-        if (r.ok) {
-          const d = await r.json();
-          if (d && d.lowest > 0) price = d.lowest;
-        }
-        // 400 = l'item n'existe pas à l'hôtel des ventes : prix null, cas normal.
-      } catch { /* réseau : on laisse null, l'item s'affichera « aucune vente » */ }
-      c[tag] = { v: price, t: Date.now() };
-      onEach(tag, price);
+      const { price, sure } = await binPrice(tag);
+      // On ne met en cache qu'une réponse certaine : une limitation de débit mise en
+      // cache ferait passer l'objet pour invendu pendant dix minutes.
+      if (sure) c[tag] = { v: price, t: Date.now() };
+      onEach(tag, price, sure);
       onProgress(++done, total);
     }
   }
-  await Promise.all(Array.from({ length: Math.min(8, todo.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(5, todo.length) }, worker));
   saveBinCache(c);
 }
 
@@ -967,7 +992,7 @@ function rowHTML(r, picked) {
   const priceCell = r.price === undefined
     ? `<span class="nop">…</span>`
     : r.price == null
-      ? `<span class="nop">${T("noPrice")}</span>`
+      ? `<span class="nop">${r.unknown ? T("priceFail") : T("noPrice")}</span>`
       : `${fmtCoins(r.price)}<span class="src">${r.source === "bz" ? T("howBz") : T("howAh")}</span>`;
 
   const ratioCell = (r.price > 0 && r.mp > 0) ? fmtCoins(r.ratio) : `<span class="nop">—</span>`;
@@ -987,7 +1012,8 @@ function renderResults() {
   if (!m) { $("#results").innerHTML = ""; return; }
 
   const rows = sortRows(m.rows);
-  const noPrice = m.rows.filter(r => r.price === null).length;
+  const noPrice = m.rows.filter(r => r.price === null && !r.unknown).length;
+  const failed  = m.rows.filter(r => r.unknown).length;
 
   let html = "";
 
@@ -1020,6 +1046,8 @@ function renderResults() {
     html += section("secNew", "secNewD", rows.filter(r => !r.isUpgrade), "secNoneNew");
     html += section("secUp",  "secUpD",  rows.filter(r =>  r.isUpgrade), "secNoneUp");
 
+    if (failed)
+      html += `<div class="msg msg-warn" style="margin-top:12px">${T("pricesFailed",{n:failed})}</div>`;
     if (noPrice)
       html += `<div style="color:var(--dim);font-size:12.5px;margin-top:9px">${T("pricesPartial",{n:noPrice})}</div>`;
   }
@@ -1163,10 +1191,10 @@ async function run(username, forcedProfileId) {
 
     await fetchBins(
       needBin,
-      (tag, price) => {
+      (tag, price, sure) => {
         const r = byId.get(tag);
         if (!r) return;
-        r.price = price; r.source = "ah";
+        r.price = price; r.source = "ah"; r.unknown = !sure;
         flush();
       },
       (done, total) => { if (total && !stale()) showLoader(T("stPrices"), done, total); }
