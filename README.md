@@ -57,7 +57,7 @@ en-têtes CORS, et structure réelle de la réponse.
 | Liste des profils | `sky.coflnet.com/api/profile/{uuid}` | ✅ 200, sans clé |
 | Profil actif | `soopy.dev/api/v2/player_skyblock/{uuid}` | ✅ 200, CORS `*` (best-effort) |
 | Prix bazaar | `api.hypixel.net/v2/skyblock/bazaar` | ✅ 200, CORS `*`, sans clé |
-| Lowest BIN | `sky.coflnet.com/api/item/price/{tag}/bin` | ✅ 200, CORS, sans clé |
+| Prix hôtel des ventes | `sky.coflnet.com/api/item/price/{tag}/current` | ✅ 200, CORS, sans clé |
 | Pseudo → UUID | `playerdb.co`, repli `minetools.eu` puis `ashcon.app` | ✅ CORS `*` |
 
 ### Pourquoi pas SkyCrypt
@@ -95,13 +95,36 @@ L'énoncé prévoyait en repli `api.hypixel.net/v2/skyblock/auctions` paginé. M
 enchères n'exposent pas l'identifiant SkyBlock de l'objet, seulement `item_bytes` (NBT
 gzippé) : il faudrait décoder ~49 000 objets pour les rattacher au catalogue.
 
-`sky.coflnet.com/api/item/price/{tag}/bin` renvoie **87 octets en ~120 ms** pour un item
-précis. L'app n'interroge que les accessoires réellement manquants, avec 8 requêtes
-concurrentes et un cache `localStorage` de **10 minutes**. Un burst de 30 requêtes n'a
-déclenché aucune limitation ; les `400` correspondent proprement aux objets absents de
-l'hôtel des ventes.
+`sky.coflnet.com/api/item/price/{tag}/current` renvoie une centaine d'octets en ~120 ms pour
+un objet précis. L'app n'interroge que les accessoires réellement manquants, avec un cache
+`localStorage` de **10 minutes**.
 
 `moulberry.codes/lowestbin.json`, la source historique, est morte (525).
+
+### `/current` plutôt que `/bin`
+
+`/bin` ne renvoie que les annonces **actives à la seconde près**. Un accessoire dont personne
+ne vend d'exemplaire à cet instant en ressort à `lowest: 0` et paraît invendable, alors que son
+prix de marché est parfaitement connu : le Junk Talisman ressortait vide quand `/current` le
+donne à 500k, l'Artifact of Coins à 67,6m, le Small Fish Bowl à 110k. Sur un profil de test,
+une dizaine d'accessoires étaient ainsi faussement marqués « aucune vente ».
+
+`/current` renvoie en une seule requête `buy` (le prix payé) et `available` (le nombre
+d'annonces en ligne), et donne la même valeur que `/bin` lorsque des annonces existent. Un
+accessoire sans annonce active affiche donc son dernier prix connu préfixé de « ≈ », et reste
+**exclu de la sélection par budget** puisqu'il n'est pas achetable dans l'immédiat.
+
+### Quota de l'API
+
+Coflnet plafonne à **100 requêtes par minute et par IP**, ce que son message d'erreur indique
+explicitement : `API calls quota exceeded! maximum admitted 100 per 1m`. Un régulateur à
+fenêtre glissante limite l'app à 85 par minute, et les accessoires au plus fort gain sont
+demandés en premier pour que le haut du classement soit exploitable avant la fin du chargement.
+
+Un `429` n'est jamais confondu avec « objet absent de l'hôtel des ventes » : il est retenté
+quatre fois avec repli exponentiel en respectant `Retry-After`, n'est jamais mis en cache, et
+s'affiche « Prix indisponible ». Comme les échecs ne sont pas mémorisés, relancer la recherche
+ne redemande que les manquants et les complète en quelques secondes.
 
 ### Note sur `api.mojang.com`
 
