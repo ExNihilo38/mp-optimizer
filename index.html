@@ -280,6 +280,8 @@ const I18N = {
     thName:"Accessoire", thTier:"Rareté", thMp:"MP gagnée", thPrice:"Prix",
     thRatio:"Coins / MP", thSlot:"Prend un slot", thHow:"Comment l'obtenir",
     yes:"Oui", no:"Non", noPrice:"Aucune vente", priceFail:"Prix indisponible",
+    unlisted:"dernier prix",
+    unlistedHint:"Aucune annonce en ligne actuellement. Prix de la dernière vente connue, donné à titre indicatif : cet accessoire est exclu de la sélection par budget.",
     pricesFailed:"{n} prix n'ont pas pu être récupérés : l'API des enchères a limité le débit. Relancez la recherche dans une minute pour les compléter.",
     secSoul:"À obtenir en jeu",
     secSoulD:"Non échangeables : exclus du classement par ratio.",
@@ -328,6 +330,8 @@ const I18N = {
     thName:"Accessory", thTier:"Rarity", thMp:"MP gained", thPrice:"Price",
     thRatio:"Coins / MP", thSlot:"Takes a slot", thHow:"How to get it",
     yes:"Yes", no:"No", noPrice:"No listing", priceFail:"Price unavailable",
+    unlisted:"last price",
+    unlistedHint:"No active listing right now. Price of the last known sale, shown as an indication: this accessory is excluded from the budget selection.",
     pricesFailed:"{n} prices could not be fetched: the auction API rate-limited us. Search again in a minute to fill them in.",
     secSoul:"Obtain in game",
     secSoulD:"Not tradeable: excluded from the ratio ranking.",
@@ -658,31 +662,55 @@ function saveBinCache(c) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Coflnet plafonne à 100 requêtes par minute et par IP — au-delà il répond
+// « API calls quota exceeded! maximum admitted 100 per 1m ». Ce régulateur lisse
+// les départs pour rester sous le plafond, avec une marge pour les autres appels.
+const COFL_LIMIT = 85, COFL_WINDOW = 60000;
+const coflHits = [];
+async function coflSlot() {
+  for (;;) {
+    const now = Date.now();
+    while (coflHits.length && now - coflHits[0] > COFL_WINDOW) coflHits.shift();
+    if (coflHits.length < COFL_LIMIT) { coflHits.push(now); return; }
+    await sleep(COFL_WINDOW - (now - coflHits[0]) + 100);
+  }
+}
+
 /**
- * Lowest BIN d'un objet. Distingue trois issues, ce qui est essentiel :
- *  - prix trouvé ;
- *  - 400/404, réponse définitive : l'objet n'existe pas à l'hôtel des ventes ;
- *  - 429 ou 5xx, réponse non concluante : on retente, et en cas d'échec on renvoie
- *    sure=false pour ne surtout pas conclure « invendu ».
+ * Prix d'un objet à l'hôtel des ventes, via /current et non /bin.
+ *
+ * /bin ne renvoie que les annonces actives à la seconde près : un objet dont
+ * personne ne vend d'exemplaire à cet instant en ressort à 0, alors que son prix
+ * de marché est parfaitement connu. /current donne les deux en une seule requête,
+ * `buy` (le prix payé) et `available` (le nombre d'annonces en ligne), et retourne
+ * la même valeur que /bin quand des annonces existent.
+ *
+ * Trois issues distinguées : prix trouvé, absence définitive (400/404), et échec
+ * non concluant (429 ou 5xx) qu'il ne faut surtout pas confondre avec « invendu ».
  */
-async function binPrice(tag) {
+async function ahPrice(tag) {
   for (let attempt = 0; attempt < 4; attempt++) {
+    await coflSlot();
     let r;
     try {
-      r = await fetch("https://sky.coflnet.com/api/item/price/" + tag + "/bin");
+      r = await fetch("https://sky.coflnet.com/api/item/price/" + tag + "/current");
     } catch {
       await sleep(400 * (attempt + 1));
       continue;
     }
     if (r.ok) {
       const d = await r.json().catch(() => null);
-      return { price: (d && d.lowest > 0) ? d.lowest : null, sure: true };
+      return {
+        price: (d && d.buy > 0) ? d.buy : null,
+        listed: !!(d && d.available > 0),
+        sure: true
+      };
     }
-    if (r.status === 400 || r.status === 404) return { price: null, sure: true };
+    if (r.status === 400 || r.status === 404) return { price: null, listed: false, sure: true };
     const ra = parseInt(r.headers.get("retry-after") || "", 10);
-    await sleep(ra > 0 ? Math.min(ra, 5) * 1000 : 400 * Math.pow(2, attempt));
+    await sleep(ra > 0 ? Math.min(ra, 10) * 1000 : 500 * Math.pow(2, attempt));
   }
-  return { price: null, sure: false };
+  return { price: null, listed: false, sure: false };
 }
 
 // Récupère les prix avec un pool de requêtes concurrentes, en signalant chaque
@@ -691,7 +719,7 @@ async function fetchBins(tags, onEach, onProgress) {
   const c = loadBinCache();
   const todo = [];
   for (const tag of tags) {
-    if (c[tag]) onEach(tag, c[tag].v, true);
+    if (c[tag]) onEach(tag, c[tag].v, true, c[tag].l);
     else todo.push(tag);
   }
   let done = 0, i = 0;
@@ -701,15 +729,15 @@ async function fetchBins(tags, onEach, onProgress) {
   async function worker() {
     while (i < todo.length) {
       const tag = todo[i++];
-      const { price, sure } = await binPrice(tag);
+      const { price, listed, sure } = await ahPrice(tag);
       // On ne met en cache qu'une réponse certaine : une limitation de débit mise en
       // cache ferait passer l'objet pour invendu pendant dix minutes.
-      if (sure) c[tag] = { v: price, t: Date.now() };
-      onEach(tag, price, sure);
+      if (sure) c[tag] = { v: price, l: listed, t: Date.now() };
+      onEach(tag, price, sure, listed);
       onProgress(++done, total);
     }
   }
-  await Promise.all(Array.from({ length: Math.min(5, todo.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(6, todo.length) }, worker));
   saveBinCache(c);
 }
 
@@ -844,8 +872,10 @@ function buildModel(items, profile) {
 // Glouton par ratio : on prend le meilleur coût/MP tant que le budget le permet.
 function greedy(rows, budget) {
   if (!budget) return { ids:new Set(), cost:0, mp:0, needSlots:0 };
+  // Un objet sans annonce en ligne ne peut pas être acheté maintenant : on le laisse
+  // dans le classement pour son prix indicatif, mais hors de la sélection.
   const sorted = rows
-    .filter(r => r.price > 0 && r.mp > 0)
+    .filter(r => r.price > 0 && r.mp > 0 && r.listed !== false)
     .slice()
     .sort((a, b) => a.ratio - b.ratio);
 
@@ -993,7 +1023,10 @@ function rowHTML(r, picked) {
     ? `<span class="nop">…</span>`
     : r.price == null
       ? `<span class="nop">${r.unknown ? T("priceFail") : T("noPrice")}</span>`
-      : `${fmtCoins(r.price)}<span class="src">${r.source === "bz" ? T("howBz") : T("howAh")}</span>`;
+      : r.listed === false
+        ? `<span class="warnc" title="${esc(T("unlistedHint"))}">≈ ${fmtCoins(r.price)}</span>` +
+          `<span class="src">${T("unlisted")}</span>`
+        : `${fmtCoins(r.price)}<span class="src">${r.source === "bz" ? T("howBz") : T("howAh")}</span>`;
 
   const ratioCell = (r.price > 0 && r.mp > 0) ? fmtCoins(r.ratio) : `<span class="nop">—</span>`;
 
@@ -1177,9 +1210,12 @@ async function run(username, forcedProfileId) {
 
     const needBin = [];
     for (const r of model.rows) {
-      if (bz[r.id] != null) { r.price = bz[r.id]; r.source = "bz"; }
-      else needBin.push(r.id);
+      if (bz[r.id] != null) { r.price = bz[r.id]; r.source = "bz"; r.listed = true; }
+      else needBin.push(r);
     }
+    // Les plus gros gains d'abord : le haut du classement devient exploitable
+    // avant la fin du chargement, qui est bridé par le quota de l'API.
+    needBin.sort((a, b) => b.mp - a.mp);
     recompute();
 
     const byId = new Map(model.rows.map(r => [r.id, r]));
@@ -1190,11 +1226,11 @@ async function run(username, forcedProfileId) {
     };
 
     await fetchBins(
-      needBin,
-      (tag, price, sure) => {
+      needBin.map(r => r.id),
+      (tag, price, sure, listed) => {
         const r = byId.get(tag);
         if (!r) return;
-        r.price = price; r.source = "ah"; r.unknown = !sure;
+        r.price = price; r.source = "ah"; r.unknown = !sure; r.listed = !!listed;
         flush();
       },
       (done, total) => { if (total && !stale()) showLoader(T("stPrices"), done, total); }
