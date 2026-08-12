@@ -204,6 +204,9 @@
     border-top:1px solid var(--line);margin-top:8px;padding-top:22px;
     color:var(--text-3);font-size:12px;line-height:1.9;
   }
+  /* Repère de version : permet de savoir en un coup d'œil si le navigateur
+     sert une copie en cache plutôt que la dernière mise en ligne. */
+  .ver{font-family:var(--mono);font-size:11px;opacity:.55}
 
   @media (max-width:720px){
     .wrap,.topbar-in{padding:0 14px}
@@ -261,6 +264,7 @@
   <footer>
     <div data-i18n="footNote"></div>
     <div data-i18n="footSrc"></div>
+    <div class="ver">version <span id="ver"></span></div>
   </footer>
 </main>
 
@@ -1430,6 +1434,9 @@ $("#budget").addEventListener("input", () => {
   state.budget = parseBudget($("#budget").value);
   if (state.model) recompute();
 });
+
+const BUILD = "2026-08-12.3";
+$("#ver").textContent = BUILD;
 
 applyLang();
 const last = localStorage.getItem("mpopt.user");
