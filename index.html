@@ -78,7 +78,7 @@
   .f-grow{flex:1 1 240px}
   .f label{
     font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--text-3);margin-bottom:3px;
+    color:var(--text);margin-bottom:3px;
   }
   .f input,.f select{
     background:none;border:none;padding:0;font-size:14.5px;width:100%;min-width:0;
@@ -144,8 +144,11 @@
   .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
   table{border-collapse:collapse;width:100%;min-width:760px}
   th,td{padding:0 14px;height:40px;text-align:left;white-space:nowrap;vertical-align:middle}
+  /* `top` se mesure depuis le conteneur de défilement, or .tablewrap en est un à
+     cause de overflow-x. Toute valeur non nulle décalerait l'en-tête par-dessus la
+     première ligne au lieu de le coller sous la barre supérieure. */
   thead th{
-    position:sticky;top:56px;z-index:2;height:36px;
+    position:sticky;top:0;z-index:2;height:36px;
     background:var(--surface-2);color:var(--text-3);
     font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
     border-bottom:1px solid var(--line);user-select:none;
@@ -210,7 +213,6 @@
     .metric{flex:1 1 50%}
     .metric:nth-child(odd)::before{display:none}
     .metric .v{font-size:19px}
-    thead th{top:56px}
     .col-opt{display:none}
     table{min-width:520px}
   }
@@ -359,6 +361,7 @@ const I18N = {
     stProfile:"Lecture du profil SkyBlock…", stItems:"Chargement du catalogue d'accessoires…",
     stBag:"Décodage du sac à accessoires…", stBazaar:"Chargement des prix du bazaar…",
     stPrices:"Récupération des prix de l'hôtel des ventes…",
+    stQuota:"Quota de l'API atteint — reprise dans {s} s",
     mpNow:"MP actuelle", mpAfter:"MP après achats", multNow:"Multiplicateur actuel",
     multAfter:"Multiplicateur après", slots:"Accessoires portés", cost:"Coût total",
     gain:"soit +{x} % de stats", selected:"{n} accessoire(s) sélectionné(s)",
@@ -409,6 +412,7 @@ const I18N = {
     stProfile:"Reading SkyBlock profile…", stItems:"Loading accessory catalogue…",
     stBag:"Decoding accessory bag…", stBazaar:"Loading bazaar prices…",
     stPrices:"Fetching auction house prices…",
+    stQuota:"API quota reached — resuming in {s}s",
     mpNow:"Current MP", mpAfter:"MP after buys", multNow:"Current multiplier",
     multAfter:"Multiplier after", slots:"Accessories worn", cost:"Total cost",
     gain:"i.e. +{x}% stats", selected:"{n} accessory(ies) selected",
@@ -731,9 +735,11 @@ async function fetchBazaar() {
 }
 
 /* --- lowest BIN : Coflnet, un appel par item, avec cache TTL 10 min --- */
+// Un prix connu n'est jamais redemandé tant qu'il n'a pas 24 h. Rafraîchir en
+// arrière-plan hachait le chargement en tranches, pour un gain de fraîcheur sans
+// intérêt ici : recharger la page suffit à repartir de zéro.
 const BIN_KEY   = "mpopt.bin.v2";
-const BIN_FRESH = 10 * 60e3;      // en deçà, la valeur est à jour : aucune requête
-const BIN_STALE = 24 * 3600e3;    // au-delà, on ne l'affiche même plus
+const BIN_STALE = 24 * 3600e3;
 
 function loadBinCache() {
   try {
@@ -754,12 +760,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // les départs pour rester sous le plafond, avec une marge pour les autres appels.
 const COFL_LIMIT = 85, COFL_WINDOW = 60000;
 const coflHits = [];
+let coflWaitUntil = 0;   // lu par l'interface pour afficher le décompte de reprise
+
 async function coflSlot() {
   for (;;) {
     const now = Date.now();
     while (coflHits.length && now - coflHits[0] > COFL_WINDOW) coflHits.shift();
-    if (coflHits.length < COFL_LIMIT) { coflHits.push(now); return; }
-    await sleep(COFL_WINDOW - (now - coflHits[0]) + 100);
+    if (coflHits.length < COFL_LIMIT) { coflHits.push(now); coflWaitUntil = 0; return; }
+    coflWaitUntil = coflHits[0] + COFL_WINDOW + 100;
+    // Réveils courts : le décompte affiché reste vivant pendant l'attente.
+    await sleep(Math.min(coflWaitUntil - now, 500));
   }
 }
 
@@ -803,14 +813,13 @@ async function ahPrice(tag) {
 // Récupère les prix avec un pool de requêtes concurrentes, en signalant chaque
 // arrivée pour un affichage progressif.
 async function fetchBins(tags, onEach, onProgress) {
-  const c = loadBinCache(), todo = [], now = Date.now();
+  const c = loadBinCache(), todo = [];
   for (const tag of tags) {
     const hit = c[tag];
-    // Toute valeur connue est affichée aussitôt, même périmée : le tableau est
-    // complet dès la première seconde, et les valeurs périmées sont rafraîchies
-    // derrière. C'est ce qui évite la page de prix vides au premier coup d'œil.
+    // Une valeur en cache est affichée telle quelle et ne redéclenche aucune requête :
+    // le tableau est complet dès la première seconde, sans chargement en tranches.
     if (hit) onEach(tag, hit.v, true, hit.l);
-    if (!hit || now - hit.t > BIN_FRESH) todo.push(tag);
+    else todo.push(tag);
   }
   let done = 0, i = 0;
   const total = todo.length;
@@ -1337,16 +1346,30 @@ async function run(username, forcedProfileId) {
       pending = requestAnimationFrame(() => { pending = 0; recompute(); });
     };
 
-    await fetchBins(
-      needBin.map(r => r.id),
-      (tag, price, sure, listed) => {
-        const r = byId.get(tag);
-        if (!r) return;
-        r.price = price; r.source = "ah"; r.unknown = !sure; r.listed = !!listed;
-        flush();
-      },
-      (done, total) => { if (total && !stale()) showLoader(T("stPrices"), done, total); }
-    );
+    // Pendant une attente de quota, aucune requête n'aboutit : sans ce ticker
+    // l'indicateur resterait figé et passerait pour un blocage.
+    let seen = 0, todo = 0;
+    const ticker = setInterval(() => {
+      if (stale() || !todo) return;
+      const left = Math.ceil((coflWaitUntil - Date.now()) / 1000);
+      showLoader(left > 0 ? T("stQuota", { s: left }) : T("stPrices"), seen, todo);
+    }, 500);
+
+    try {
+      await fetchBins(
+        needBin.map(r => r.id),
+        (tag, price, sure, listed) => {
+          const r = byId.get(tag);
+          if (!r) return;
+          r.price = price; r.source = "ah"; r.unknown = !sure; r.listed = !!listed;
+          flush();
+        },
+        (done, total) => {
+          seen = done; todo = total;
+          if (total && !stale()) showLoader(T("stPrices"), done, total);
+        }
+      );
+    } finally { clearInterval(ticker); }
     if (stale()) return;
 
     cancelAnimationFrame(pending);
