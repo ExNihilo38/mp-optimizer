@@ -57,7 +57,8 @@ en-têtes CORS, et structure réelle de la réponse.
 | Liste des profils | `sky.coflnet.com/api/profile/{uuid}` | ✅ 200, sans clé |
 | Profil actif | `soopy.dev/api/v2/player_skyblock/{uuid}` | ✅ 200, CORS `*` (best-effort) |
 | Prix bazaar | `api.hypixel.net/v2/skyblock/bazaar` | ✅ 200, CORS `*`, sans clé |
-| Prix hôtel des ventes | `sky.coflnet.com/api/item/price/{tag}/current` | ✅ 200, CORS, sans clé |
+| Prix hôtel des ventes (groupé) | `raw.githubusercontent.com/SkyHelperBot/Prices/main/prices.json` | ✅ 200, CORS `*`, sans clé |
+| Prix à l'unité (complément) | `sky.coflnet.com/api/item/price/{tag}/current` | ✅ 200, CORS, sans clé |
 | Pseudo → UUID | `playerdb.co`, repli `minetools.eu` puis `ashcon.app` | ✅ CORS `*` |
 
 ### Pourquoi pas SkyCrypt
@@ -113,6 +114,25 @@ une dizaine d'accessoires étaient ainsi faussement marqués « aucune vente ».
 d'annonces en ligne), et donne la même valeur que `/bin` lorsque des annonces existent. Un
 accessoire sans annonce active affiche donc son dernier prix connu préfixé de « ≈ », et reste
 **exclu de la sélection par budget** puisqu'il n'est pas achetable dans l'immédiat.
+
+### Un dump groupé plutôt que trois cents appels
+
+Interroger Coflnet objet par objet fonctionne, mais son quota de 100 requêtes par minute
+plafonne le premier chargement : 183 accessoires manquants sur un compte de test, soit près de
+deux minutes d'attente avant d'avoir un classement complet. Inutilisable.
+
+**SkyHelper** publie un dump de prix sur GitHub, `SkyHelperBot/Prices`, **rafraîchi toutes les
+quinze minutes** et servi avec `Access-Control-Allow-Origin: *`. Une seule requête de 758 Ko
+en ~0,35 s y couvre **268 des 282 accessoires** que l'app peut avoir à interroger, soit 95 %.
+
+L'ordre de résolution devient donc : bazaar, puis dump groupé, et seulement en dernier recours
+un appel unitaire à Coflnet pour la quinzaine d'objets restants — très en deçà du quota.
+Mesuré sur un compte réel, cache entièrement vide : **3,4 s** au lieu de deux minutes, et
+0,8 s aux recherches suivantes. Si le dump est indisponible, l'app retombe intégralement sur
+Coflnet et se comporte comme avant.
+
+Seules les entrées correspondant à des accessoires sont conservées en cache, quelques centaines
+au lieu des 14 428 du fichier, pour ne pas saturer le quota de `localStorage`.
 
 ### Quota de l'API
 

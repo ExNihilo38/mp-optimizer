@@ -738,6 +738,36 @@ async function fetchBazaar() {
   return out;
 }
 
+/**
+ * Dump groupé de prix maintenu par SkyHelper, rafraîchi toutes les 15 minutes et
+ * servi par GitHub avec CORS ouvert. Une seule requête couvre 95 % des accessoires
+ * interrogeables, ce qui remplace près de trois cents appels unitaires bridés par
+ * le quota de Coflnet. Les clés y sont en minuscules.
+ */
+const DUMP_URL = "https://raw.githubusercontent.com/SkyHelperBot/Prices/main/prices.json";
+const DUMP_KEY = "mpopt.dump.v1";
+const DUMP_TTL = 15 * 60e3;
+
+async function fetchPriceDump(ids) {
+  const hit = cache.get(DUMP_KEY, DUMP_TTL);
+  if (hit) return hit;
+  let d;
+  try {
+    d = await getJSON(DUMP_URL, "SkyHelper");
+  } catch {
+    return {};   // indisponible : on retombe entièrement sur Coflnet
+  }
+  // On ne conserve que les accessoires : quelques centaines d'entrées au lieu
+  // de 14 000, sans quoi le quota de localStorage serait vite atteint.
+  const out = {};
+  for (const id of ids) {
+    const v = d[id.toLowerCase()];
+    if (typeof v === "number" && v > 0) out[id] = v;
+  }
+  cache.set(DUMP_KEY, out);
+  return out;
+}
+
 /* --- lowest BIN : Coflnet, un appel par item, avec cache TTL 10 min --- */
 // Un prix connu n'est jamais redemandé tant qu'il n'a pas 24 h. Rafraîchir en
 // arrière-plan hachait le chargement en tranches, pour un gain de fraîcheur sans
@@ -1330,12 +1360,18 @@ async function run(username, forcedProfileId) {
 
     // Premier rendu immédiat : les prix arriveront ensuite.
     showLoader(T("stBazaar"));
-    const bz = await fetchBazaar();
+    const [bz, dump] = await Promise.all([
+      fetchBazaar(),
+      fetchPriceDump(items.map(i => i.id))
+    ]);
     if (stale()) return;
 
+    // Ordre de résolution : bazaar, puis dump groupé, et seulement en dernier
+    // recours un appel unitaire à Coflnet — soit une poignée d'objets.
     const needBin = [];
     for (const r of model.rows) {
-      if (bz[r.id] != null) { r.price = bz[r.id]; r.source = "bz"; r.listed = true; }
+      if (bz[r.id] != null)        { r.price = bz[r.id];   r.source = "bz"; r.listed = true; }
+      else if (dump[r.id] != null) { r.price = dump[r.id]; r.source = "ah"; r.listed = true; }
       else needBin.push(r);
     }
     // Les plus gros gains d'abord : le haut du classement devient exploitable
@@ -1435,7 +1471,7 @@ $("#budget").addEventListener("input", () => {
   if (state.model) recompute();
 });
 
-const BUILD = "2026-08-12.3";
+const BUILD = "2026-08-30.1";
 $("#ver").textContent = BUILD;
 
 applyLang();
