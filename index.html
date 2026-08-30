@@ -546,7 +546,10 @@ const fmtNum = n => (n == null || !isFinite(n)) ? "—"
 // Accepte "50m", "1.2b", "250 000 000", "250,000,000".
 function parseBudget(raw) {
   if (!raw) return null;
-  const s = String(raw).trim().toLowerCase().replace(/[\s,  ]/g, "");
+  let s = String(raw).trim().toLowerCase().replace(/[\s  ]/g, "");
+  // La virgule est ambiguë : séparateur de milliers en anglais, décimal en français.
+  // « 250,000,000 » vaut 250 millions, mais « 1,5m » vaut 1,5 million — pas 15.
+  s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
   const m = s.match(/^([0-9]*\.?[0-9]+)\s*([kmb])?$/);
   if (!m) return null;
   const mult = { k:1e3, m:1e6, b:1e9 }[m[2]] || 1;
@@ -694,6 +697,11 @@ async function resolveUUID(name) {
 const listProfiles = uuid =>
   getJSON("https://sky.coflnet.com/api/profile/" + uuid, "Coflnet");
 
+// Contenu brut du sac à accessoires, absent si le joueur a coupé son API.
+const bagData = p =>
+  (((p || {}).inventory || {}).bag_contents || {}).talisman_bag &&
+  p.inventory.bag_contents.talisman_bag.data;
+
 const fetchProfile = (uuid, pid) =>
   getJSON("https://sky.coflnet.com/api/profile/" + uuid + "/" + pid, "Coflnet");
 
@@ -709,7 +717,16 @@ async function selectedProfileId(uuid) {
 async function fetchAccessories() {
   const hit = cache.get("mpopt.items.v2", 24 * 3600e3);
   if (hit) return hit;
-  const d = await getJSON("https://api.hypixel.net/v2/resources/skyblock/items", "Hypixel");
+  let d;
+  try {
+    d = await getJSON("https://api.hypixel.net/v2/resources/skyblock/items", "Hypixel");
+  } catch (e) {
+    // Le catalogue bouge de quelques objets par mois : une copie périmée vaut
+    // infiniment mieux qu'un échec complet si l'API Hypixel est indisponible.
+    const old = cache.get("mpopt.items.v2", Infinity);
+    if (old) return old;
+    throw e;
+  }
   // On ne garde que les accessoires et les champs utiles : la réponse brute fait 5 Mo,
   // bien au-delà du quota localStorage.
   const list = (d.items || [])
@@ -1337,12 +1354,27 @@ async function run(username, forcedProfileId) {
     renderProfileSelect(entries, pid, username);
 
     showLoader(T("stProfile"));
-    const prof = await fetchProfile(uuid, pid);
+    let prof = await fetchProfile(uuid, pid);
     if (stale()) return;
 
-    const b64 = prof && prof.inventory && prof.inventory.bag_contents &&
-                prof.inventory.bag_contents.talisman_bag &&
-                prof.inventory.bag_contents.talisman_bag.data;
+    let b64 = bagData(prof);
+    // Un profil sans données d'inventaire est courant : partie abandonnée, ou API
+    // activée sur un seul profil. Plutôt que de renvoyer « API désactivée » alors
+    // qu'un autre profil est lisible, on essaie les suivants — sauf si le joueur a
+    // explicitement choisi celui-ci dans le sélecteur.
+    if (!b64 && !forcedProfileId) {
+      for (const [, id] of entries) {
+        if (id === pid) continue;
+        const alt = await fetchProfile(uuid, id).catch(() => null);
+        if (stale()) return;
+        const d = alt && bagData(alt);
+        if (d) {
+          prof = alt; b64 = d; pid = id;
+          renderProfileSelect(entries, pid, username);
+          break;
+        }
+      }
+    }
     if (!b64) throw new AppError("", `<div>${T("errApiOff")}</div>`);
 
     showLoader(T("stBag"));
@@ -1471,7 +1503,7 @@ $("#budget").addEventListener("input", () => {
   if (state.model) recompute();
 });
 
-const BUILD = "2026-08-30.1";
+const BUILD = "2026-08-30.2";
 $("#ver").textContent = BUILD;
 
 applyLang();
